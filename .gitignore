@@ -1,9 +1,12 @@
 # Dependencies
 node_modules/
+Frontend/node_modules/
 
 # Build output
 dist/
 build/
+Frontend/dist/
+Frontend/build/
 coverage/
 .tsbuildinfo
 
@@ -13,6 +16,9 @@ coverage/
 .env.development.local
 .env.test.local
 .env.production.local
+Frontend/.env
+Frontend/.env.local
+Frontend/.env.* 
 
 # Logs
 *.log
@@ -28,3 +34,16 @@ Thumbs.db
 # Editor settings
 .vscode/
 .idea/
+
+# Frontend caches & framework folders
+Frontend/.cache/
+Frontend/.parcel-cache/
+Frontend/.next/
+Frontend/.nuxt/
+Frontend/.vercel/
+Frontend/.vite/
+Frontend/.expo/
+Frontend/.expo-shared/
+Frontend/.turbo/
+Frontend/.rollup.cache
+Frontend/.pnp.*
