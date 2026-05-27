@@ -1,0 +1,99 @@
+.cadastro-container {
+  max-width: 400px;
+  margin: 50px auto;
+  padding: 30px;
+  border: 1px solid #000000;
+  border-radius: 12px;
+  background-color: #ffffff;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #000000;
+}
+
+input {
+  width: 100%;
+  padding: 12px;
+  box-sizing: border-box;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 16px;
+  transition: border-color 0.3s ease;
+}
+
+input:focus {
+  outline: none;
+  border-color: #000000;
+}
+
+.error {
+  color: #093956;
+  font-size: 0.9em;
+  margin-top: 5px;
+}
+
+.cadastro-container label[for="ativo"] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+.cadastro-container input[type="checkbox"] {
+  width: auto;
+  padding: 0;
+  border: none;
+  box-sizing: border-box;
+  cursor: pointer;
+  accent-color: #093956;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  background-color: #000000;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  transition: background-color 0.3s ease;
+}
+
+button:hover {
+  background-color: #333333;
+}
+
+.auth-switch-callout {
+  margin-top: 16px;
+  text-align: center;
+  color: #555555;
+  font-size: 0.92rem;
+}
+
+.auth-switch-link {
+  color: #093956;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.auth-switch-link:hover {
+  color: #072b40;
+  border-bottom-color: #072b40;
+}
+
+.auth-switch-link:focus-visible {
+  outline: 2px solid #093956;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
