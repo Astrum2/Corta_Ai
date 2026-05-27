@@ -1,0 +1,59 @@
+import { DataTypes, Model, Transaction } from "sequelize";
+import sequelize from "../config/database";
+import Barber from "./Barber";
+
+class User extends Model {
+  declare id: number;
+  declare name: string;
+  declare email: string;
+  declare password: string;
+  declare cpf: string | null;
+  declare admin: boolean;
+  declare created_at: Date;
+}
+
+User.init(
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
+      primaryKey: true,
+    },
+    name: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    email: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+    },
+    password: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    cpf: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    admin: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+    created_at: {
+      type: DataTypes.DATE,
+      defaultValue: DataTypes.NOW,
+    },
+  },
+  {
+    sequelize,
+    tableName: "users",
+    timestamps: false,
+  }
+);
+
+User.hasOne(Barber, { foreignKey: "user_id", as: "barber" });
+Barber.belongsTo(User, { foreignKey: "user_id", as: "user" })
+
+export default User;

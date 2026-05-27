@@ -1,0 +1,278 @@
+import { Request, Response } from "express";
+import bcrypt from "bcrypt";
+import User from "../models/User";
+import BarbersController from "./barbersController";
+import Barber from "../models/Barber";
+import Appointment from "../models/Appointment";
+import BarberSchedule from "../models/BarberSchedule";
+import sequelize from "../config/database";
+
+class UsersController {
+    static normalizeCpf(value: string) {
+        return value?.replace(/\D/g, "") ?? "";
+    }
+
+    static isCpfValid(cpf: string) {
+        const normalizedCpf = UsersController.normalizeCpf(cpf);
+
+        if (!normalizedCpf || normalizedCpf.length !== 11) {
+            return false;
+        }
+
+        if (/^(\d)\1{10}$/.test(normalizedCpf)) {
+            return false;
+        }
+
+        let sum = 0;
+        for (let i = 0; i < 9; i++) {
+            sum += parseInt(normalizedCpf[i], 10) * (10 - i);
+        }
+
+        let remainder = (sum * 10) % 11;
+        if (remainder === 10) remainder = 0;
+        if (remainder !== parseInt(normalizedCpf[9], 10)) {
+            return false;
+        }
+
+        sum = 0;
+        for (let i = 0; i < 10; i++) {
+            sum += parseInt(normalizedCpf[i], 10) * (11 - i);
+        }
+
+        remainder = (sum * 10) % 11;
+        if (remainder === 10) remainder = 0;
+        if (remainder !== parseInt(normalizedCpf[10], 10)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    static async isStrongPassword(value: string, res: Response) {
+        const password = value?.trim();
+
+        const hasUpperCase = /[A-Z]/.test(password);
+        const hasNumber = /\d/.test(password);
+        const hasSpecial = /[^A-Za-z0-9]/.test(password);
+
+        if (!password || password.length < 7 || !hasUpperCase || !hasNumber || !hasSpecial) {
+            return res.status(400).send({
+                message: "A senha deve conter no mínimo 7 caracteres, uma letra maiúscula, um número e um caractere especial"
+            });
+        }
+    }
+
+    static async isValidEmail(value: string, res: Response) {
+        const email = value?.trim();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+        if (!email || !emailRegex.test(email)) {
+            return res.status(400).send({
+                message: "E-mail inválido!"
+            });
+        }
+    }
+
+    static async isValidCpf(value: string, res: Response) {
+        if (!UsersController.isCpfValid(value)) {
+            return res.status(400).send({
+                message: "CPF inválido!"
+            });
+        }
+    }
+
+    static async list(req: Request, res: Response) {
+        const users = await User.findAll();
+
+        res.send(users);
+    }
+
+    static async getById(req: Request, res: Response) {
+        const { id } = req.params;
+        const user = await User.findByPk(Number(id));
+
+        if (!user) {
+            return res.status(404).send({ message: "Usuário não encontrado!" });
+        }
+
+        res.send(user);
+    }
+
+    static async create(req: Request, res: Response) {
+        const { name, email, password, cpf, admin } = req.body ?? {};
+
+        if (!name || !email || !password || !cpf) {
+            return res.status(400).send({
+                message: "Nome, E-mail, CPF e a Senha são obrigatórios!"
+            });
+        }
+
+        const passwordValidation = await UsersController.isStrongPassword(password, res);
+        if (passwordValidation) {
+            return passwordValidation;
+        }
+
+        const emailValidation = await UsersController.isValidEmail(email, res);
+        if (emailValidation) {
+            return emailValidation;
+        }
+
+        const cpfValidation = await UsersController.isValidCpf(cpf, res);
+        if (cpfValidation) {
+            return cpfValidation;
+        }
+
+        const savedUser = await User.findOne({
+            where: { email: email.trim().toLowerCase() }
+        });
+
+        if (savedUser) {
+            return res.status(400).json({ message: "Usuário já existe com esse Email" });
+        }
+
+        const hashedPassword = await bcrypt.hash(password.trim(), 10);
+
+        const user = await User.create({
+            name: name,
+            email: email.trim().toLowerCase(),
+            password: hashedPassword,
+            cpf: UsersController.normalizeCpf(cpf),
+            admin: admin ?? 0
+        });
+
+        const isAdmin = admin === 1 || admin === true || admin === "1";
+
+        if (isAdmin) {
+            await BarbersController.createFromData({
+                name: user.name,
+                user_id: user.id,
+                phone: req.body.phone ?? null,
+                photo: req.body.photo ?? null,
+            });
+        }
+
+        return res.status(201).send(user);
+    }
+
+    static async remove(req: Request, res: Response) {
+        const { id } = req.params;
+        const authUserId = Number(res.locals.authUserId);
+        const userId = Number(id);
+
+        if (Number.isInteger(authUserId) && authUserId !== userId) {
+            return res.status(403).send({ message: "Você só pode modificar o seu próprio usuário!" });
+        }
+
+        const user = await User.findByPk(userId);
+
+        if (!user) {
+            return res.status(404).send({ message: "Usuário não encontrado!" });
+        }
+
+        await sequelize.transaction(async (transaction) => {
+            const barber = await Barber.findOne({ where: { user_id: userId }, transaction });
+
+            if (barber) {
+                const barberId = Number(barber.get("id"));
+
+                if (!Number.isInteger(barberId)) {
+                    throw new Error("Barbeiro encontrado com id inválido");
+                }
+
+                await BarberSchedule.destroy({
+                    where: { barber_id: barberId },
+                    transaction,
+                });
+
+                await Appointment.destroy({
+                    where: { barber_id: barberId },
+                    transaction,
+                });
+
+                await barber.destroy({ transaction });
+            }
+
+            await Appointment.destroy({
+                where: { user_id: userId },
+                transaction,
+            });
+
+            await user.destroy({ transaction });
+        });
+
+        return res.status(204).send();
+    }
+
+    static async update(req: Request, res: Response) {
+        const { id } = req.params;
+        const authUserId = Number(res.locals.authUserId);
+
+        if (Number.isInteger(authUserId) && authUserId !== Number(id)) {
+            return res.status(403).send({ message: "Você só pode modificar o seu próprio usuário!" });
+        }
+
+        const user = await User.findByPk(Number(id));
+        const { name, password, cpf, phone, photo, admin } = req.body ?? {};
+
+        if (!user) {
+            return res.status(404).send({ message: "Usuário não encontrado!" });
+        }
+
+        if (!name && !password && !cpf && admin === undefined) {
+            return res.status(400).send({
+                message: "Informe ao menos um campo para atualização!"
+            });
+        }
+
+        let nextPassword = user.password;
+
+        if (password !== undefined) {
+            const passwordValidation = await UsersController.isStrongPassword(password, res);
+            if (passwordValidation) {
+                return passwordValidation;
+            }
+
+            nextPassword = await bcrypt.hash(password.trim(), 10);
+        }
+
+        if (cpf !== undefined) {
+            const cpfValidation = await UsersController.isValidCpf(cpf, res);
+            if (cpfValidation) {
+                return cpfValidation;
+            }
+        }
+
+        await user.update({
+            name: name ?? user.name,
+            password: nextPassword,
+            cpf: cpf !== undefined ? UsersController.normalizeCpf(cpf) : user.cpf,
+            admin: admin ?? user.admin,
+        });
+
+        const nextAdmin =  admin !== undefined ? admin === true || admin === 1 || admin === "1" : Boolean(user.admin);
+
+        const barber = await Barber.findOne({ where: { user_id: user.id } });
+
+        if (nextAdmin) {
+            if (barber) {
+                await barber.update({
+                    name: name ?? user.name,
+                    phone: phone !== undefined ? phone : barber.phone,
+                    photo: photo !== undefined ? photo : barber.photo,
+                    active: req.body.active ?? barber.active,
+                });
+            } else {
+                await BarbersController.createFromData({
+                    name: name ?? user.name,
+                    user_id: user.id,
+                    phone: phone ?? null,
+                    photo: photo ?? null,
+                });
+            }
+        }
+
+        return res.send(user);
+    }
+}
+
+export default UsersController;
