@@ -4,11 +4,40 @@ services:
     container_name: mysql-db
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_ROOT_PASSWORD: Amolivros27#
       MYSQL_DATABASE: corta_ai
-      MYSQL_USER: root
-      MYSQL_PASSWORD: 123456
     ports:
       - "3307:3306"
-    volumes:
-      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: backend_service
+    expose:
+      - "3001"
+    environment:
+      DB_HOST: database
+      DB_PORT: 3306
+      DB_NAME: corta_ai
+      DB_USER: root
+      DB_PASS: Amolivros27#
+    depends_on:
+      database:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    container_name: frontend_service
+    expose:
+      - "3000"
+    depends_on:
+      - backend
