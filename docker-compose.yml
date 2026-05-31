@@ -22,8 +22,8 @@ services:
       context: ./Backend
       dockerfile: Dockerfile
     container_name: backend_service
-    expose:
-      - "3001"
+    ports:
+      - "3001:3001"
     environment:
       DB_HOST: database
       DB_PORT: 3306
@@ -34,13 +34,27 @@ services:
       database:
         condition: service_healthy
 
+  image-server:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+      target: upload-server
+    container_name: image_server_service
+    ports:
+      - "3002:3002"
+    environment:
+      UPLOAD_PORT: 3002
+    volumes:
+      - ./Frontend/public/imagens:/app/public/imagens
+
   frontend:
     build:
       context: ./Frontend
       dockerfile: Dockerfile
+      target: frontend
     container_name: frontend_service
-    expose:
-      - "3000"
+    ports:
+      - "3000:3000"
     depends_on:
       - backend
 

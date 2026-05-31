@@ -1,5 +1,6 @@
 import "../estilo/Sobre.css";
 import { useSobrePage } from "../hooks/useSobrePage";
+import { getUploadImageUrl } from "../utils/api";
 
 function Sobre() {
     const { barbeiros, carregando, erro } = useSobrePage();
@@ -27,7 +28,7 @@ function Sobre() {
                             <article className="barbeiro-card" key={barbeiro.id}>
                                 <img
                                     className="barbeiro-foto"
-                                    src={`/imagens/${barbeiro.photo}`}
+                                    src={getUploadImageUrl(barbeiro.photo)}
                                     alt={`Foto de ${barbeiro.name}`}
                                     onError={(evento) => {
                                         evento.currentTarget.src = "/imagens/Logo.png";

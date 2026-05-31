@@ -1,6 +1,10 @@
 export const API_BASE_URL = (process.env.REACT_APP_API_URL || 'http://localhost:3001').replace(/\/$/, '');
 export const UPLOAD_BASE_URL = (process.env.REACT_APP_UPLOAD_URL || 'http://localhost:3002').replace(/\/$/, '');
 
+export function getUploadImageUrl(fileName) {
+  return `${UPLOAD_BASE_URL}/imagens/${fileName}`;
+}
+
 export async function requestJson(path, options = {}) {
   const { headers: customHeaders = {}, ...restOptions } = options;
 

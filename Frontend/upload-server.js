@@ -10,6 +10,8 @@ const imagesDir = path.resolve(__dirname, 'public', 'imagens');
 
 fs.mkdirSync(imagesDir, { recursive: true });
 
+app.use('/imagens', express.static(imagesDir));
+
 const sanitizeBaseName = (filename) => {
   const ext = path.extname(filename);
   const base = path.basename(filename, ext);
