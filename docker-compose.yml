@@ -4,14 +4,14 @@ services:
     container_name: mysql-db
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: Amolivros27#
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: corta_ai
     ports:
       - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p$$MYSQL_ROOT_PASSWORD"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -29,7 +29,8 @@ services:
       DB_PORT: 3306
       DB_NAME: corta_ai
       DB_USER: root
-      DB_PASS: Amolivros27#
+      DB_PASS: ${MYSQL_ROOT_PASSWORD}
+      JWT_SECRET: mysupersecretpassword
     depends_on:
       database:
         condition: service_healthy
