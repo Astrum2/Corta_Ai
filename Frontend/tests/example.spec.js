@@ -260,3 +260,101 @@ test('criação de serviço falha e mostra mensagem de erro', async ({ page }) =
   await expect(page.getByRole('alert')).toHaveText('Nao foi possivel criar o servico');
   await expect(page.getByRole('heading', { name: 'Barba Premium' })).toHaveCount(0);
 });
+
+test('agendamento faz fluxo de criação com sucesso', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('loggedUser', JSON.stringify({
+      id: 2,
+      nome: 'Cliente Teste',
+      email: 'cliente@teste.com',
+      token: 'fake.cliente.token',
+      admin: false,
+    }));
+  });
+
+  let agendamentosSimulados = [
+    { id: 1, data: '2026-06-10', horario: '14:00', servico: 'Corte Tradicional' }
+  ];
+
+  await page.route('http://localhost:3001/appointments', async (route) => {
+    const request = route.request();
+
+    if (request.method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(agendamentosSimulados),
+      });
+      return;
+    }
+
+    if (request.method() === 'POST') {
+      const payload = request.postDataJSON();
+      const novoAgendamento = {
+        id: 2,
+        ...payload,
+      };
+      
+      agendamentosSimulados.push(novoAgendamento);
+
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify(novoAgendamento),
+      });
+      return;
+    }
+
+    await route.fallback();
+  });
+
+  await page.goto('http://localhost:3000/#/Agendamentos');
+
+  await page.getByRole('button', { name: 'Novo Agendamento' }).click();
+  await page.getByLabel('Data:').fill('2026-06-15');
+  await page.getByLabel('Horário:').fill('10:00');
+  await page.getByLabel('Serviço:').selectOption({ label: 'Corte Tradicional' });
+  await page.getByRole('button', { name: 'Confirmar Agendamento' }).click();
+
+  await expect(page.getByRole('alert')).toHaveText('Agendamento realizado com sucesso!');
+  await expect(page.getByText('2026-06-15 - 10:00')).toBeVisible();
+});
+
+test('criação de agendamento falha e mostra mensagem de erro', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('loggedUser', JSON.stringify({
+      id: 2,
+      nome: 'Cliente Teste',
+      email: 'cliente@teste.com',
+      token: 'fake.cliente.token',
+      admin: false,
+    }));
+  });
+
+  await page.route('http://localhost:3001/appointments', async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+      return;
+    }
+
+    if (route.request().method() === 'POST') {
+      await route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: 'Horário já preenchido por outro cliente' }),
+      });
+      return;
+    }
+
+    await route.fallback();
+  });
+
+  await page.goto('http://localhost:3000/#/Agendamentos');
+
+  await page.getByRole('button', { name: 'Novo Agendamento' }).click();
+  await page.getByLabel('Data:').fill('2026-06-15');
+  await page.getByLabel('Horário:').fill('10:00');
+  await page.getByRole('button', { name: 'Confirmar Agendamento' }).click();
+
+  await expect(page.getByRole('alert')).toHaveText('Horário já preenchido por outro cliente');
+});
