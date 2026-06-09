@@ -100,6 +100,76 @@ async function prepareAdminServicesPage(page, initialServices, routeState = {}) 
   return servicesState;
 }
 
+/**
+ * @param {import('@playwright/test').Page} page
+ * @param {{ services?: ServiceFixture[], barbers?: Array<{ id: number, name: string, active?: boolean }>, appointments?: any[], appointmentPostStatus?: number, appointmentPostBody?: object }} [options]
+ */
+async function prepareAppointmentPage(page, options = {}) {
+  const {
+    services = [
+      { id: 1, name: 'Corte Tradicional', description: 'Corte simples e acabamento clássico', duration_minutes: 30, price: 25 },
+    ],
+    barbers = [
+      { id: 3, name: 'Barbeiro Teste', active: true },
+    ],
+    appointments = [],
+    appointmentPostStatus = 201,
+    appointmentPostBody = { id: 2 },
+  } = options;
+
+  await page.addInitScript(() => {
+    localStorage.setItem('loggedUser', JSON.stringify({
+      id: 2,
+      nome: 'Cliente Teste',
+      email: 'cliente@teste.com',
+      token: 'fake.cliente.token',
+      admin: false,
+    }));
+  });
+
+  await page.route('http://localhost:3001/services', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(services),
+    });
+  });
+
+  await page.route('http://localhost:3001/barbers', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(barbers),
+    });
+  });
+
+  await page.route('http://localhost:3001/appointments*', async (route) => {
+    const request = route.request();
+
+    if (request.method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(appointments),
+      });
+      return;
+    }
+
+    if (request.method() === 'POST') {
+      const payload = request.postDataJSON();
+
+      await route.fulfill({
+        status: appointmentPostStatus,
+        contentType: 'application/json',
+        body: JSON.stringify(appointmentPostBody?.message ? appointmentPostBody : { ...appointmentPostBody, ...payload }),
+      });
+      return;
+    }
+
+    await route.fallback();
+  });
+}
+
 test('login tem sucesso e redireciona para a home', async ({ page }) => {
   await page.route('http://localhost:3001/login', async (route) => {
     await route.fulfill({status: 200, contentType: 'application/json', body: JSON.stringify({ token: 'fake.jwt.token'})});
@@ -262,99 +332,33 @@ test('criação de serviço falha e mostra mensagem de erro', async ({ page }) =
 });
 
 test('agendamento faz fluxo de criação com sucesso', async ({ page }) => {
-  await page.addInitScript(() => {
-    localStorage.setItem('loggedUser', JSON.stringify({
-      id: 2,
-      nome: 'Cliente Teste',
-      email: 'cliente@teste.com',
-      token: 'fake.cliente.token',
-      admin: false,
-    }));
-  });
+  await prepareAppointmentPage(page);
 
-  let agendamentosSimulados = [
-    { id: 1, data: '2026-06-10', horario: '14:00', servico: 'Corte Tradicional' }
-  ];
+  await page.goto('http://localhost:3000/#/Agendamento');
 
-  await page.route('http://localhost:3001/appointments', async (route) => {
-    const request = route.request();
+  await page.getByLabel('Servico').selectOption('1');
+  await page.getByLabel('Barbeiro').selectOption('3');
+  await page.getByLabel('Data').fill('2026-06-15');
+  await page.getByLabel('Horarios disponiveis (15 em 15 minutos)').selectOption('10:00');
+  await page.getByRole('button', { name: 'Confirmar agendamento' }).click();
 
-    if (request.method() === 'GET') {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(agendamentosSimulados),
-      });
-      return;
-    }
-
-    if (request.method() === 'POST') {
-      const payload = request.postDataJSON();
-      const novoAgendamento = {
-        id: 2,
-        ...payload,
-      };
-      
-      agendamentosSimulados.push(novoAgendamento);
-
-      await route.fulfill({
-        status: 201,
-        contentType: 'application/json',
-        body: JSON.stringify(novoAgendamento),
-      });
-      return;
-    }
-
-    await route.fallback();
-  });
-
-  await page.goto('http://localhost:3000/#/Agendamentos');
-
-  await page.getByRole('button', { name: 'Novo Agendamento' }).click();
-  await page.getByLabel('Data:').fill('2026-06-15');
-  await page.getByLabel('Horário:').fill('10:00');
-  await page.getByLabel('Serviço:').selectOption({ label: 'Corte Tradicional' });
-  await page.getByRole('button', { name: 'Confirmar Agendamento' }).click();
-
-  await expect(page.getByRole('alert')).toHaveText('Agendamento realizado com sucesso!');
-  await expect(page.getByText('2026-06-15 - 10:00')).toBeVisible();
+  await expect(page.getByText('Agendamento enviado com sucesso!')).toBeVisible();
 });
 
 test('criação de agendamento falha e mostra mensagem de erro', async ({ page }) => {
-  await page.addInitScript(() => {
-    localStorage.setItem('loggedUser', JSON.stringify({
-      id: 2,
-      nome: 'Cliente Teste',
-      email: 'cliente@teste.com',
-      token: 'fake.cliente.token',
-      admin: false,
-    }));
+  await prepareAppointmentPage(page, {
+    appointments: [],
+    appointmentPostStatus: 400,
+    appointmentPostBody: { message: 'Horário já preenchido por outro cliente' },
   });
 
-  await page.route('http://localhost:3001/appointments', async (route) => {
-    if (route.request().method() === 'GET') {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
-      return;
-    }
+  await page.goto('http://localhost:3000/#/Agendamento');
 
-    if (route.request().method() === 'POST') {
-      await route.fulfill({
-        status: 400,
-        contentType: 'application/json',
-        body: JSON.stringify({ message: 'Horário já preenchido por outro cliente' }),
-      });
-      return;
-    }
+  await page.getByLabel('Servico').selectOption('1');
+  await page.getByLabel('Barbeiro').selectOption('3');
+  await page.getByLabel('Data').fill('2026-06-15');
+  await page.getByLabel('Horarios disponiveis (15 em 15 minutos)').selectOption('10:00');
+  await page.getByRole('button', { name: 'Confirmar agendamento' }).click();
 
-    await route.fallback();
-  });
-
-  await page.goto('http://localhost:3000/#/Agendamentos');
-
-  await page.getByRole('button', { name: 'Novo Agendamento' }).click();
-  await page.getByLabel('Data:').fill('2026-06-15');
-  await page.getByLabel('Horário:').fill('10:00');
-  await page.getByRole('button', { name: 'Confirmar Agendamento' }).click();
-
-  await expect(page.getByRole('alert')).toHaveText('Horário já preenchido por outro cliente');
+  await expect(page.getByText('Falha ao enviar agendamento. Verifique o backend e tente novamente.')).toBeVisible();
 });
