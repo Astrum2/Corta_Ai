@@ -113,8 +113,10 @@ export function useCadastroPage() {
       setIsSubmitting(true);
 
       let photoName = '';
+      console.log('[DEBUG] cadastro: isAdmin=', isAdmin, 'imagem=', !!formData.imagem);
       if (isAdmin && formData.imagem) {
         const uploadResponse = await uploadRegistrationImage(formData.imagem, authUser?.token);
+        console.log('[DEBUG] uploadResponse:', uploadResponse);
         photoName = uploadResponse?.fileName || '';
       }
 
@@ -135,6 +137,7 @@ export function useCadastroPage() {
       }
 
       await registerUser(payload);
+      console.log('[DEBUG] register payload:', payload);
 
       if (isAdmin) {
         setMessage({ type: 'success', text: 'Novo barbeiro criado com sucesso!' });
