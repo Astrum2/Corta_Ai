@@ -1,35 +1,9 @@
-export const API_BASE_URL = (process.env.REACT_APP_API_URL || 'http://localhost:3001').replace(/\/$/, '');
-export const UPLOAD_BASE_URL = (process.env.REACT_APP_UPLOAD_URL || 'http://localhost:3000').replace(/\/$/, '');
+export const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
+export const UPLOAD_BASE_URL = process.env.REACT_APP_UPLOAD_URL || '';
 
 export function getUploadImageUrl(fileName) {
+  if (!fileName) return '/imagens/Logo.png';
   return `${UPLOAD_BASE_URL}/imagens/${fileName}`;
-}
-
-export async function requestJson(path, options = {}) {
-  const { headers: customHeaders = {}, ...restOptions } = options;
-
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...customHeaders
-    },
-    ...restOptions
-  });
-
-  const contentType = response.headers.get('content-type') || '';
-  const responseData = contentType.includes('application/json') ? await response.json() : null;
-  const responseText = !contentType.includes('application/json') ? await response.text() : '';
-
-  if (!response.ok) {
-    const message =
-      responseData?.message ||
-      responseData?.error ||
-      responseText ||
-      `Falha ao conectar com o backend (HTTP ${response.status}).`;
-    throw new Error(message);
-  }
-
-  return responseData;
 }
 
 export async function uploadProfileImage(file, token) {
@@ -53,7 +27,39 @@ export async function uploadProfileImage(file, token) {
       responseData?.message ||
       responseData?.error ||
       responseText ||
-      `Falha ao enviar imagem (HTTP ${response.status}).`;
+      `Falha ao enviar imagem (HTTP ${response.status})`;
+
+    throw new Error(message);
+  }
+
+  if (!contentType.includes('application/json')) {
+    throw new Error(`Resposta inesperada do servidor de upload: ${responseText.slice(0, 120)}`);
+  }
+
+  return responseData;
+}
+
+export async function requestJson(path, options = {}) {
+  const { headers: customHeaders = {}, ...restOptions } = options;
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...customHeaders
+    },
+    ...restOptions
+  });
+
+  const contentType = response.headers.get('content-type') || '';
+  const responseData = contentType.includes('application/json') ? await response.json() : null;
+  const responseText = !contentType.includes('application/json') ? await response.text() : '';
+
+  if (!response.ok) {
+    const message =
+      responseData?.message ||
+      responseData?.error ||
+      responseText ||
+      `Falha ao conectar com o backend (HTTP ${response.status}).`;
     throw new Error(message);
   }
 

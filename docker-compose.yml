@@ -20,14 +20,16 @@ services:
       - app-network
 
   nginx:
-    image: nginx:latest
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
     container_name: nginx-container
     ports:
       - "8080:80"
-    volumes:
-      - ./F:\3-Périodo\6 Bimestre\Corta_Ai\nginx.conf:/etc/nginx/nginx.conf
     depends_on:
-      - database
+      - frontend
+      - backend
+      - image-server
     networks:
       - app-network
 

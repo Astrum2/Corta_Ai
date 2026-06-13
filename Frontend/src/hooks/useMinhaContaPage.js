@@ -151,7 +151,11 @@ export function useMinhaContaPage() {
       let photoName = formData.imagemNome;
       if (isAdmin && formData.imagem) {
         const uploadResponse = await uploadUserProfileImage(formData.imagem, authUser.token);
-        photoName = uploadResponse?.fileName || photoName;
+        photoName =
+          uploadResponse?.fileName ||
+          uploadResponse?.filename ||
+          uploadResponse?.name ||
+          photoName;
       }
 
       const payload = {
