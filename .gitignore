@@ -48,3 +48,9 @@ Frontend/.expo-shared/
 Frontend/.turbo/
 Frontend/.rollup.cache
 Frontend/.pnp.*
+
+.certs
+certs/*
+!certs/.gitkeep
+!certs/README.md
+certs/README.md
