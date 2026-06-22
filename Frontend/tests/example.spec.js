@@ -1,5 +1,16 @@
 // @ts-check
+import 'dotenv/config';
 import { test, expect } from '@playwright/test';
+
+const APP_BASE_URL = process.env.APP_BASE_URL
+
+test.use({
+  ignoreHTTPSErrors: true,
+});
+
+function appUrl(route = '') {
+  return `${APP_BASE_URL}/#/${route}`;
+}
 
 /**
  * @typedef {{ id: number, name: string, description?: string, duration_minutes?: number, price?: number }} ServiceFixture
@@ -30,7 +41,7 @@ async function prepareAdminServicesPage(page, initialServices, routeState = {}) 
     },
   });
 
-  await page.route('http://localhost:3001/services', async (route) => {
+  await page.route('**/services', async (route) => {
     const request = route.request();
 
     if (request.method() === 'GET') {
@@ -62,7 +73,7 @@ async function prepareAdminServicesPage(page, initialServices, routeState = {}) 
     await route.fallback();
   });
 
-  await page.route('http://localhost:3001/services/*', async (route) => {
+  await page.route('**/services/*', async (route) => {
     const request = route.request();
     const serviceId = Number(request.url().split('/').pop());
 
@@ -102,7 +113,13 @@ async function prepareAdminServicesPage(page, initialServices, routeState = {}) 
 
 /**
  * @param {import('@playwright/test').Page} page
- * @param {{ services?: ServiceFixture[], barbers?: Array<{ id: number, name: string, active?: boolean }>, appointments?: any[], appointmentPostStatus?: number, appointmentPostBody?: object }} [options]
+ * @param {{
+ *   services?: ServiceFixture[],
+ *   barbers?: Array<{ id: number, name: string, active?: boolean }>,
+ *   appointments?: any[],
+ *   appointmentPostStatus?: number,
+ *   appointmentPostBody?: { id?: number, message?: string }
+ * }} [options]
  */
 async function prepareAppointmentPage(page, options = {}) {
   const {
@@ -127,7 +144,7 @@ async function prepareAppointmentPage(page, options = {}) {
     }));
   });
 
-  await page.route('http://localhost:3001/services', async (route) => {
+  await page.route('**/services', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -135,7 +152,7 @@ async function prepareAppointmentPage(page, options = {}) {
     });
   });
 
-  await page.route('http://localhost:3001/barbers', async (route) => {
+  await page.route('**/barbers', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -143,7 +160,7 @@ async function prepareAppointmentPage(page, options = {}) {
     });
   });
 
-  await page.route('http://localhost:3001/appointments*', async (route) => {
+  await page.route('**/appointments*', async (route) => {
     const request = route.request();
 
     if (request.method() === 'GET') {
@@ -171,22 +188,22 @@ async function prepareAppointmentPage(page, options = {}) {
 }
 
 test('login tem sucesso e redireciona para a home', async ({ page }) => {
-  await page.route('http://localhost:3001/login', async (route) => {
+  await page.route('**/login', async (route) => {
     await route.fulfill({status: 200, contentType: 'application/json', body: JSON.stringify({ token: 'fake.jwt.token'})});
   });
 
-  await page.goto('http://localhost:3000/#/Login');
+  await page.goto(appUrl('Login'));
 
   await page.getByLabel('Email:').fill('adminteste@gmail.com');
   await page.getByLabel('Senha:').fill('Abc123#');
   await page.getByRole('button', { name: 'Entrar' }).click();
 
   await expect(page.getByRole('alert')).toHaveText('Login realizado com sucesso!');
-  await expect(page).toHaveURL('http://localhost:3000/#/');
+  await expect(page).toHaveURL(`${APP_BASE_URL}/#/`);
 });
 
 test('login falha e mostra mensagem de erro', async ({ page }) => {
-  await page.route('http://localhost:3001/login', async (route) => {
+  await page.route('**/login', async (route) => {
     await route.fulfill({
       status: 401,
       contentType: 'application/json',
@@ -196,25 +213,25 @@ test('login falha e mostra mensagem de erro', async ({ page }) => {
     });
   });
 
-  await page.goto('http://localhost:3000/#/Login');
+  await page.goto(appUrl('Login'));
 
   await page.getByLabel('Email:').fill('adminteste@gmail.com');
   await page.getByLabel('Senha:').fill('senha-errada');
   await page.getByRole('button', { name: 'Entrar' }).click();
 
   await expect(page.getByRole('alert')).toHaveText('Email ou senha inválidos');
-  await expect(page).toHaveURL('http://localhost:3000/#/Login');
+  await expect(page).toHaveURL(appUrl('Login'));
 });
 
 test('cadastro tem sucesso e redireciona para a home', async ({ page }) => {
-  await page.route('http://localhost:3001/users', async (route) => {
+  await page.route('**/users', async (route) => {
     await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({}) });
   });
-  await page.route('http://localhost:3001/login', async (route) => {
+  await page.route('**/login', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ token: 'fake.jwt.token' })});
   });
 
-  await page.goto('http://localhost:3000/#/Cadastro');
+  await page.goto(appUrl('Cadastro'));
 
   await page.getByLabel('Nome:').fill('Usuário Teste');
   await page.getByLabel('Email:').fill('usuario.test@example.com');
@@ -224,15 +241,15 @@ test('cadastro tem sucesso e redireciona para a home', async ({ page }) => {
   await page.getByRole('button', { name: 'Cadastrar' }).click();
 
   await expect(page.getByRole('alert')).toHaveText('Cadastro realizado com sucesso!');
-  await expect(page).toHaveURL('http://localhost:3000/#/');
+  await expect(page).toHaveURL(`${APP_BASE_URL}/#/`);
 });
 
 test('cadastro falha e mostra mensagem de erro', async ({ page }) => {
-  await page.route('http://localhost:3001/users', async (route) => {
+  await page.route('**/users', async (route) => {
     await route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ message: 'Email já cadastrado' }) });
   });
 
-  await page.goto('http://localhost:3000/#/Cadastro');
+  await page.goto(appUrl('Cadastro'));
 
   await page.getByLabel('Nome:').fill('Usuário Teste');
   await page.getByLabel('Email:').fill('usuario.test@example.com');
@@ -242,7 +259,7 @@ test('cadastro falha e mostra mensagem de erro', async ({ page }) => {
   await page.getByRole('button', { name: 'Cadastrar' }).click();
 
   await expect(page.getByRole('alert')).toHaveText('Email já cadastrado');
-  await expect(page).toHaveURL('http://localhost:3000/#/Cadastro');
+  await expect(page).toHaveURL(appUrl('Cadastro'));
 });
 
 test('serviço faz CRUD completo com sucesso', async ({ page }) => {
@@ -250,7 +267,7 @@ test('serviço faz CRUD completo com sucesso', async ({ page }) => {
     { id: 1, name: 'Corte Tradicional', description: 'Corte simples e acabamento clássico', duration_minutes: 30, price: 25 },
   ], { nextCreatedId: 2 });
 
-  await page.goto('http://localhost:3000/#/Serviços');
+  await page.goto(appUrl('Serviços'));
 
   await expect(page.getByRole('heading', { name: 'Nossos Servicos' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Corte Tradicional' })).toBeVisible();
@@ -298,7 +315,7 @@ test('criação de serviço falha e mostra mensagem de erro', async ({ page }) =
     }));
   });
 
-  await page.route('http://localhost:3001/services', async (route) => {
+  await page.route('**/services', async (route) => {
     if (route.request().method() === 'GET') {
       await route.fulfill({
         status: 200,
@@ -318,7 +335,7 @@ test('criação de serviço falha e mostra mensagem de erro', async ({ page }) =
     await route.fallback();
   });
 
-  await page.goto('http://localhost:3000/#/Serviços');
+  await page.goto(appUrl('Serviços'));
 
   await page.getByRole('button', { name: 'Novo Serviço' }).click();
   await page.getByPlaceholder('Nome do serviço').fill('Barba Premium');
@@ -334,7 +351,7 @@ test('criação de serviço falha e mostra mensagem de erro', async ({ page }) =
 test('agendamento faz fluxo de criação com sucesso', async ({ page }) => {
   await prepareAppointmentPage(page);
 
-  await page.goto('http://localhost:3000/#/Agendamento');
+  await page.goto(appUrl('Agendamento'));
 
   await page.getByLabel('Servico').selectOption('1');
   await page.getByLabel('Barbeiro').selectOption('3');
@@ -352,7 +369,7 @@ test('criação de agendamento falha e mostra mensagem de erro', async ({ page }
     appointmentPostBody: { message: 'Horário já preenchido por outro cliente' },
   });
 
-  await page.goto('http://localhost:3000/#/Agendamento');
+  await page.goto(appUrl('Agendamento'));
 
   await page.getByLabel('Servico').selectOption('1');
   await page.getByLabel('Barbeiro').selectOption('3');
