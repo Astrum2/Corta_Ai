@@ -45,10 +45,6 @@ function Header() {
     return (
         <header className="header">
 
-            <div className="logo">
-                <Link to="/" className='logo-link'><img src="/imagens/Logo.png" alt="CortaAí" /></Link>
-            </div>
-
             <button className="hamburger" onClick={() => setIsOpen(!isOpen)}><span></span><span></span><span></span></button>
 
             <nav className={`menu_header ${isOpen ? 'open' : ''}`}>
