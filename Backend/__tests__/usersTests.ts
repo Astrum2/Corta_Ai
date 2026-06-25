@@ -2,24 +2,62 @@ import { Request, Response } from "express";
 import UsersController from "../src/controllers/usersController";
 import User from "../src/models/User";
 import Barber from "../src/models/Barber";
+import Appointment from "../src/models/Appointment";
 import bcrypt from "bcrypt";
 
-jest.mock("../src/models/User", () => {
-    const actual = jest.requireActual("../src/models/User");
-    const User = actual.default;
+jest.mock("../src/config/database", () => ({
+    __esModule: true,
+    default: {
+        transaction: jest.fn(async (callback) => {
+            return callback({});
+        }),
+    },
+}));
 
-    User.findAll = jest.fn();
-    User.findByPk = jest.fn();
-    User.findOne = jest.fn();
-    User.create = jest.fn();
+jest.mock("../src/models/User", () => ({
+    __esModule: true,
+    default: {
+        findAll: jest.fn(),
+        findByPk: jest.fn(),
+        findOne: jest.fn(),
+        create: jest.fn(),
+    },
+}));
 
-    return {
-        __esModule: true,
-        default: User,
-    };
-});
+jest.mock("../src/models/Barber", () => ({
+    __esModule: true,
+    default: {
+        findOne: jest.fn(),
+        create: jest.fn(),
+    },
+}));
 
-jest.mock("bcrypt");
+jest.mock("../src/models/Appointment", () => ({
+    __esModule: true,
+    default: {
+        findOne: jest.fn(),
+        findAll: jest.fn(),
+        create: jest.fn(),
+        destroy: jest.fn(),
+    },
+}));
+
+jest.mock("../src/models/BarberSchedule", () => ({
+    __esModule: true,
+    default: {
+        findOne: jest.fn(),
+        findAll: jest.fn(),
+        create: jest.fn(),
+        destroy: jest.fn(),
+    },
+}));
+
+jest.mock("bcrypt", () => ({
+    __esModule: true,
+    default: {
+        hash: jest.fn(),
+    },
+}));
 
 describe("UsersController", () => {
     let mockRequest: Partial<Request>;
@@ -126,15 +164,30 @@ describe("UsersController", () => {
 
     describe("remove", () => {
         it("deve remover usuário existente", async () => {
-            const mockUser = { id: 1, destroy: jest.fn().mockResolvedValue(undefined) };
+            const mockUser = {
+                id: 1,
+                destroy: jest.fn().mockResolvedValue(undefined),
+            };
+
             mockRequest.params = { id: "1" } as any;
 
             (User.findByPk as jest.Mock).mockResolvedValue(mockUser);
+            (Barber.findOne as jest.Mock).mockResolvedValue(null);
+            (Appointment.findOne as jest.Mock).mockResolvedValue(null);
 
             await UsersController.remove(mockRequest as Request, mockResponse as Response);
 
             expect(User.findByPk).toHaveBeenCalledWith(1);
-            expect(mockUser.destroy).toHaveBeenCalledTimes(1);
+
+            expect(Barber.findOne).toHaveBeenCalledWith({
+                where: { user_id: 1 },
+                transaction: expect.any(Object),
+            });
+
+            expect(mockUser.destroy).toHaveBeenCalledWith({
+                transaction: expect.any(Object),
+            });
+
             expect(mockResponse.status).toHaveBeenCalledWith(204);
             expect(mockResponse.send).toHaveBeenCalledWith();
         });
@@ -159,7 +212,7 @@ describe("UsersController", () => {
             mockRequest.body = { name: "Ana Maria", admin: true };
 
             (User.findByPk as jest.Mock).mockResolvedValue(mockUser);
-            jest.spyOn(Barber, "findOne").mockResolvedValue(mockBarber as any);
+            (Barber.findOne as jest.Mock).mockResolvedValue(mockBarber);
 
             await UsersController.update(mockRequest as Request, mockResponse as Response);
 
@@ -168,18 +221,31 @@ describe("UsersController", () => {
         });
 
         it("deve hashear nova senha quando a senha for enviada", async () => {
-            const mockUser = { id: 1, name: "Ana", password: "old-hash", cpf: "12345678901", admin: false, update: jest.fn().mockResolvedValue(undefined) };
+            const mockUser = {
+                id: 1,
+                name: "Ana",
+                password: "old-hash",
+                cpf: "12345678901",
+                admin: false,
+                update: jest.fn().mockResolvedValue(undefined),
+            };
 
             mockRequest.params = { id: "1" } as any;
             mockRequest.body = { password: "NovaSenha1!" };
 
             (User.findByPk as jest.Mock).mockResolvedValue(mockUser);
+            (Barber.findOne as jest.Mock).mockResolvedValue(null);
             (bcrypt.hash as jest.Mock).mockResolvedValue("new-hash");
 
             await UsersController.update(mockRequest as Request, mockResponse as Response);
 
             expect(bcrypt.hash).toHaveBeenCalledWith("NovaSenha1!", 10);
-            expect(mockUser.update).toHaveBeenCalledWith({ name: "Ana", password: "new-hash", cpf: "12345678901", admin: false });
+            expect(mockUser.update).toHaveBeenCalledWith({
+                name: "Ana",
+                password: "new-hash",
+                cpf: "12345678901",
+                admin: false,
+            });
         });
 
         it("deve retornar 400 quando nenhum campo for enviado", async () => {

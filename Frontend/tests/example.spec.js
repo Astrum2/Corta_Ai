@@ -1,0 +1,381 @@
+// @ts-check
+import 'dotenv/config';
+import { test, expect } from '@playwright/test';
+
+const APP_BASE_URL = process.env.APP_BASE_URL
+
+test.use({
+  ignoreHTTPSErrors: true,
+});
+
+function appUrl(route = '') {
+  return `${APP_BASE_URL}/#/${route}`;
+}
+
+/**
+ * @typedef {{ id: number, name: string, description?: string, duration_minutes?: number, price?: number }} ServiceFixture
+ * @typedef {{ nextCreatedId?: number }} ServicesRouteState
+ */
+
+/**
+ * @param {import('@playwright/test').Page} page
+ * @param {ServiceFixture[]} initialServices
+ * @param {ServicesRouteState} [routeState]
+ */
+async function prepareAdminServicesPage(page, initialServices, routeState = {}) {
+  const servicesState = {
+    ...routeState,
+    services: [...initialServices],
+  };
+
+  await page.addInitScript((data) => {
+    const { loggedUser } = data;
+    localStorage.setItem('loggedUser', JSON.stringify(loggedUser));
+  }, {
+    loggedUser: {
+      id: 1,
+      nome: 'Admin Teste',
+      email: 'admin@teste.com',
+      token: 'fake.admin.token',
+      admin: true,
+    },
+  });
+
+  await page.route('**/services', async (route) => {
+    const request = route.request();
+
+    if (request.method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(servicesState.services),
+      });
+      return;
+    }
+
+    if (request.method() === 'POST') {
+      const payload = request.postDataJSON();
+      const createdService = {
+        id: routeState.nextCreatedId ?? 2,
+        ...payload,
+      };
+
+      servicesState.services = [...servicesState.services, createdService];
+
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify(createdService),
+      });
+      return;
+    }
+
+    await route.fallback();
+  });
+
+  await page.route('**/services/*', async (route) => {
+    const request = route.request();
+    const serviceId = Number(request.url().split('/').pop());
+
+    if (request.method() === 'PUT') {
+      const payload = request.postDataJSON();
+
+      servicesState.services = servicesState.services.map((service) => (
+        service.id === serviceId
+          ? { ...service, ...payload }
+          : service
+      ));
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ id: serviceId, ...payload }),
+      });
+      return;
+    }
+
+    if (request.method() === 'DELETE') {
+      servicesState.services = servicesState.services.filter((service) => service.id !== serviceId);
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({}),
+      });
+      return;
+    }
+
+    await route.fallback();
+  });
+
+  return servicesState;
+}
+
+/**
+ * @param {import('@playwright/test').Page} page
+ * @param {{
+ *   services?: ServiceFixture[],
+ *   barbers?: Array<{ id: number, name: string, active?: boolean }>,
+ *   appointments?: any[],
+ *   appointmentPostStatus?: number,
+ *   appointmentPostBody?: { id?: number, message?: string }
+ * }} [options]
+ */
+async function prepareAppointmentPage(page, options = {}) {
+  const {
+    services = [
+      { id: 1, name: 'Corte Tradicional', description: 'Corte simples e acabamento clássico', duration_minutes: 30, price: 25 },
+    ],
+    barbers = [
+      { id: 3, name: 'Barbeiro Teste', active: true },
+    ],
+    appointments = [],
+    appointmentPostStatus = 201,
+    appointmentPostBody = { id: 2 },
+  } = options;
+
+  await page.addInitScript(() => {
+    localStorage.setItem('loggedUser', JSON.stringify({
+      id: 2,
+      nome: 'Cliente Teste',
+      email: 'cliente@teste.com',
+      token: 'fake.cliente.token',
+      admin: false,
+    }));
+  });
+
+  await page.route('**/services', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(services),
+    });
+  });
+
+  await page.route('**/barbers', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(barbers),
+    });
+  });
+
+  await page.route('**/appointments*', async (route) => {
+    const request = route.request();
+
+    if (request.method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(appointments),
+      });
+      return;
+    }
+
+    if (request.method() === 'POST') {
+      const payload = request.postDataJSON();
+
+      await route.fulfill({
+        status: appointmentPostStatus,
+        contentType: 'application/json',
+        body: JSON.stringify(appointmentPostBody?.message ? appointmentPostBody : { ...appointmentPostBody, ...payload }),
+      });
+      return;
+    }
+
+    await route.fallback();
+  });
+}
+
+test('login tem sucesso e redireciona para a home', async ({ page }) => {
+  await page.route('**/login', async (route) => {
+    await route.fulfill({status: 200, contentType: 'application/json', body: JSON.stringify({ token: 'fake.jwt.token'})});
+  });
+
+  await page.goto(appUrl('Login'));
+
+  await page.getByLabel('Email:').fill('adminteste@gmail.com');
+  await page.getByLabel('Senha:').fill('Abc123#');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+
+  await expect(page.getByRole('alert')).toHaveText('Login realizado com sucesso!');
+  await expect(page).toHaveURL(`${APP_BASE_URL}/#/`);
+});
+
+test('login falha e mostra mensagem de erro', async ({ page }) => {
+  await page.route('**/login', async (route) => {
+    await route.fulfill({
+      status: 401,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        message: 'Email ou senha inválidos'
+      }),
+    });
+  });
+
+  await page.goto(appUrl('Login'));
+
+  await page.getByLabel('Email:').fill('adminteste@gmail.com');
+  await page.getByLabel('Senha:').fill('senha-errada');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+
+  await expect(page.getByRole('alert')).toHaveText('Email ou senha inválidos');
+  await expect(page).toHaveURL(appUrl('Login'));
+});
+
+test('cadastro tem sucesso e redireciona para a home', async ({ page }) => {
+  await page.route('**/users', async (route) => {
+    await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({}) });
+  });
+  await page.route('**/login', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ token: 'fake.jwt.token' })});
+  });
+
+  await page.goto(appUrl('Cadastro'));
+
+  await page.getByLabel('Nome:').fill('Usuário Teste');
+  await page.getByLabel('Email:').fill('usuario.test@example.com');
+  await page.getByLabel('Senha:').nth(0).fill('Abc123#');
+  await page.getByLabel('Confirmar Senha:').fill('Abc123#');
+  await page.getByLabel('CPF:').fill('923.332.930-55');
+  await page.getByRole('button', { name: 'Cadastrar' }).click();
+
+  await expect(page.getByRole('alert')).toHaveText('Cadastro realizado com sucesso!');
+  await expect(page).toHaveURL(`${APP_BASE_URL}/#/`);
+});
+
+test('cadastro falha e mostra mensagem de erro', async ({ page }) => {
+  await page.route('**/users', async (route) => {
+    await route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ message: 'Email já cadastrado' }) });
+  });
+
+  await page.goto(appUrl('Cadastro'));
+
+  await page.getByLabel('Nome:').fill('Usuário Teste');
+  await page.getByLabel('Email:').fill('usuario.test@example.com');
+  await page.getByLabel('Senha:').nth(0).fill('Abc123#');
+  await page.getByLabel('Confirmar Senha:').fill('Abc123#');
+  await page.getByLabel('CPF:').fill('923.332.930-55');
+  await page.getByRole('button', { name: 'Cadastrar' }).click();
+
+  await expect(page.getByRole('alert')).toHaveText('Email já cadastrado');
+  await expect(page).toHaveURL(appUrl('Cadastro'));
+});
+
+test('serviço faz CRUD completo com sucesso', async ({ page }) => {
+  const servicesState = await prepareAdminServicesPage(page, [
+    { id: 1, name: 'Corte Tradicional', description: 'Corte simples e acabamento clássico', duration_minutes: 30, price: 25 },
+  ], { nextCreatedId: 2 });
+
+  await page.goto(appUrl('Serviços'));
+
+  await expect(page.getByRole('heading', { name: 'Nossos Servicos' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Corte Tradicional' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Novo Serviço' }).click();
+  await page.getByPlaceholder('Nome do serviço').fill('Barba Premium');
+  await page.getByPlaceholder('Descrição').fill('Barba feita com acabamento premium');
+  await page.getByPlaceholder('Duração (minutos)').fill('45');
+  await page.getByPlaceholder('Preço').fill('55');
+  await page.getByRole('button', { name: 'Criar Serviço' }).click();
+
+  await expect(page.getByRole('alert')).toHaveText('Serviço criado com sucesso!');
+  await expect(page.getByRole('heading', { name: 'Barba Premium' })).toBeVisible();
+
+  await page.getByRole('button', { name: /Editar/ }).last().click();
+  await page.getByPlaceholder('Nome').fill('Barba Premium Atualizado');
+  await page.getByPlaceholder('Descrição').fill('Barba com acabamento atualizado');
+  await page.getByPlaceholder('Duração (minutos)').fill('50');
+  await page.getByPlaceholder('Preço').fill('60');
+  await page.getByRole('button', { name: 'Salvar' }).click();
+
+  await expect(page.getByRole('alert')).toHaveText('Serviço atualizado com sucesso!');
+  await expect(page.getByRole('heading', { name: 'Barba Premium Atualizado' })).toBeVisible();
+
+  await page.locator('.servico-card').filter({ has: page.getByRole('heading', { name: 'Barba Premium Atualizado' }) }).getByRole('button', { name: '🗑️ Deletar' }).click();
+  await expect(page.getByRole('heading', { name: 'Confirmar exclusão' })).toBeVisible();
+  await page.getByRole('button', { name: 'Deletar', exact: true }).click();
+
+  await expect(page.getByRole('alert')).toHaveText('Serviço deletado com sucesso!');
+  await expect(page.getByRole('heading', { name: 'Barba Premium Atualizado' })).toHaveCount(0);
+
+  expect(servicesState.services).toEqual([
+    { id: 1, name: 'Corte Tradicional', description: 'Corte simples e acabamento clássico', duration_minutes: 30, price: 25},
+  ]);
+});
+
+test('criação de serviço falha e mostra mensagem de erro', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('loggedUser', JSON.stringify({
+      id: 1,
+      nome: 'Admin Teste',
+      email: 'admin@teste.com',
+      token: 'fake.admin.token',
+      admin: true,
+    }));
+  });
+
+  await page.route('**/services', async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          { id: 1, name: 'Corte Tradicional', description: 'Corte simples e acabamento clássico', duration_minutes: 30, price: 25 },
+        ]),
+      });
+      return;
+    }
+
+    if (route.request().method() === 'POST') {
+      await route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ message: 'Nao foi possivel criar o servico' }) });
+      return;
+    }
+
+    await route.fallback();
+  });
+
+  await page.goto(appUrl('Serviços'));
+
+  await page.getByRole('button', { name: 'Novo Serviço' }).click();
+  await page.getByPlaceholder('Nome do serviço').fill('Barba Premium');
+  await page.getByPlaceholder('Descrição').fill('Barba feita com acabamento premium');
+  await page.getByPlaceholder('Duração (minutos)').fill('45');
+  await page.getByPlaceholder('Preço').fill('55');
+  await page.getByRole('button', { name: 'Criar Serviço' }).click();
+
+  await expect(page.getByRole('alert')).toHaveText('Nao foi possivel criar o servico');
+  await expect(page.getByRole('heading', { name: 'Barba Premium' })).toHaveCount(0);
+});
+
+test('agendamento faz fluxo de criação com sucesso', async ({ page }) => {
+  await prepareAppointmentPage(page);
+
+  await page.goto(appUrl('Agendamento'));
+
+  await page.getByLabel('Servico').selectOption('1');
+  await page.getByLabel('Barbeiro').selectOption('3');
+  await page.getByLabel('Data').fill('2026-06-15');
+  await page.getByLabel('Horarios disponiveis (15 em 15 minutos)').selectOption('10:00');
+  await page.getByRole('button', { name: 'Confirmar agendamento' }).click();
+
+  await expect(page.getByText('Agendamento enviado com sucesso!')).toBeVisible();
+});
+
+test('criação de agendamento falha e mostra mensagem de erro', async ({ page }) => {
+  await prepareAppointmentPage(page, {
+    appointments: [],
+    appointmentPostStatus: 400,
+    appointmentPostBody: { message: 'Horário já preenchido por outro cliente' },
+  });
+
+  await page.goto(appUrl('Agendamento'));
+
+  await page.getByLabel('Servico').selectOption('1');
+  await page.getByLabel('Barbeiro').selectOption('3');
+  await page.getByLabel('Data').fill('2026-06-15');
+  await page.getByLabel('Horarios disponiveis (15 em 15 minutos)').selectOption('10:00');
+  await page.getByRole('button', { name: 'Confirmar agendamento' }).click();
+
+  await expect(page.getByText('Falha ao enviar agendamento. Verifique o backend e tente novamente.')).toBeVisible();
+});
