@@ -55,10 +55,10 @@ router.get( "/barbers/:id", authMiddleware, requirePermission( "barber_profile.a
 router.delete( "/barbers/:id", authMiddleware, requirePermission( "barber_profile.access" ), BarbersController.remove );
 
 router.get( "/services", ServicesController.list);
-router.post( "/services", authMiddleware, requirePermission( "services.access" ), ServicesController.create );
+router.post( "/services", authMiddleware, requirePermission( "services.manage" ), ServicesController.create );
 router.get( "/services/:id", ServicesController.getById );
-router.put( "/services/:id", authMiddleware, requirePermission( "services.access" ), ServicesController.update );
-router.delete("/services/:id", authMiddleware, requirePermission( "services.access" ), ServicesController.remove );
+router.put( "/services/:id", authMiddleware, requirePermission( "services.manage" ), ServicesController.update );
+router.delete("/services/:id", authMiddleware, requirePermission( "services.manage" ), ServicesController.remove );
 
 router.get( "/appointments", authMiddleware, AppointmentsController.list );
 router.post( "/appointments", authMiddleware, AppointmentsController.create );
