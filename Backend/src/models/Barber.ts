@@ -2,13 +2,13 @@ import { DataTypes, Model } from "sequelize";
 import sequelize from "../config/database";
 
 class Barber extends Model {
-    public id!: number;
-    public user_id!: number;
-    public name!: string;
-    public photo!: string;
-    public phone!: string;
-    public active!: boolean;
-    public created_at!: Date;
+    declare id: number;
+    declare user_id: number;
+    declare name: string;
+    declare photo: string | null;
+    declare phone: string | null;
+    declare active: boolean;
+    declare created_at: Date;
 }
 
 Barber.init(
@@ -18,6 +18,7 @@ Barber.init(
             autoIncrement: true,
             primaryKey: true,
         },
+
         user_id: {
             type: DataTypes.INTEGER,
             allowNull: false,
@@ -29,23 +30,28 @@ Barber.init(
             onUpdate: "CASCADE",
             onDelete: "RESTRICT",
         },
+
         name: {
             type: DataTypes.STRING,
             allowNull: false,
         },
+
         photo: {
             type: DataTypes.STRING,
             allowNull: true,
         },
+
         phone: {
             type: DataTypes.STRING,
             allowNull: true,
         },
+
         active: {
             type: DataTypes.BOOLEAN,
             allowNull: false,
             defaultValue: true,
         },
+
         created_at: {
             type: DataTypes.DATE,
             defaultValue: DataTypes.NOW,
@@ -55,7 +61,7 @@ Barber.init(
         sequelize,
         tableName: "barbers",
         timestamps: false,
-    },
-)
+    }
+);
 
 export default Barber;

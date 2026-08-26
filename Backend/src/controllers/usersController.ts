@@ -1,13 +1,14 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import User from "../models/User";
-import BarbersController from "./barbersController";
+import Role from "../models/Roles";
 import Barber from "../models/Barber";
 import Appointment from "../models/Appointment";
 import BarberSchedule from "../models/BarberSchedule";
 import sequelize from "../config/database";
 
 class UsersController {
+
     static normalizeCpf(value: string) {
         return value?.replace(/\D/g, "") ?? "";
     }
@@ -24,23 +25,33 @@ class UsersController {
         }
 
         let sum = 0;
+
         for (let i = 0; i < 9; i++) {
             sum += parseInt(normalizedCpf[i], 10) * (10 - i);
         }
 
         let remainder = (sum * 10) % 11;
-        if (remainder === 10) remainder = 0;
+
+        if (remainder === 10) {
+            remainder = 0;
+        }
+
         if (remainder !== parseInt(normalizedCpf[9], 10)) {
             return false;
         }
 
         sum = 0;
+
         for (let i = 0; i < 10; i++) {
             sum += parseInt(normalizedCpf[i], 10) * (11 - i);
         }
 
         remainder = (sum * 10) % 11;
-        if (remainder === 10) remainder = 0;
+
+        if (remainder === 10) {
+            remainder = 0;
+        }
+
         if (remainder !== parseInt(normalizedCpf[10], 10)) {
             return false;
         }
@@ -55,9 +66,16 @@ class UsersController {
         const hasNumber = /\d/.test(password);
         const hasSpecial = /[^A-Za-z0-9]/.test(password);
 
-        if (!password || password.length < 7 || !hasUpperCase || !hasNumber || !hasSpecial) {
+        if (
+            !password ||
+            password.length < 7 ||
+            !hasUpperCase ||
+            !hasNumber ||
+            !hasSpecial
+        ) {
             return res.status(400).send({
-                message: "A senha deve conter no mínimo 7 caracteres, uma letra maiúscula, um número e um caractere especial"
+                message:
+                    "A senha deve conter no mínimo 7 caracteres, uma letra maiúscula, um número e um caractere especial"
             });
         }
     }
@@ -82,42 +100,78 @@ class UsersController {
     }
 
     static async list(req: Request, res: Response) {
-        const users = await User.findAll();
+        const users = await User.findAll({
+            attributes: {
+                exclude: ["password"]
+            },
+            include: [
+                {
+                    model: Role,
+                    as: "role",
+                    attributes: ["id", "name"]
+                }
+            ]
+        });
 
-        res.send(users);
+        return res.send(users);
     }
 
     static async getById(req: Request, res: Response) {
         const { id } = req.params;
-        const user = await User.findByPk(Number(id));
+
+        const user = await User.findByPk(Number(id), {
+            attributes: {
+                exclude: ["password"]
+            },
+            include: [
+                {
+                    model: Role,
+                    as: "role",
+                    attributes: ["id", "name"]
+                }
+            ]
+        });
 
         if (!user) {
             return res.status(404).send({ message: "Usuário não encontrado!" });
         }
 
-        res.send(user);
+        return res.send(user);
     }
 
     static async create(req: Request, res: Response) {
-        const { name, email, password, cpf, admin } = req.body ?? {};
+        const { name, email, password, cpf } = req.body ?? {};
 
         if (!name || !email || !password || !cpf) {
-            return res.status(400).send({
-                message: "Nome, E-mail, CPF e a Senha são obrigatórios!"
-            });
+            return res.status(400).send({ message: "Nome, E-mail, CPF e a Senha são obrigatórios!" });
         }
 
-        const passwordValidation = await UsersController.isStrongPassword(password, res);
+        const passwordValidation =
+            await UsersController.isStrongPassword(
+                password,
+                res
+            );
+
         if (passwordValidation) {
             return passwordValidation;
         }
 
-        const emailValidation = await UsersController.isValidEmail(email, res);
+        const emailValidation =
+            await UsersController.isValidEmail(
+                email,
+                res
+            );
+
         if (emailValidation) {
             return emailValidation;
         }
 
-        const cpfValidation = await UsersController.isValidCpf(cpf, res);
+        const cpfValidation =
+            await UsersController.isValidCpf(
+                cpf,
+                res
+            );
+
         if (cpfValidation) {
             return cpfValidation;
         }
@@ -130,36 +184,60 @@ class UsersController {
             return res.status(400).json({ message: "Usuário já existe com esse Email" });
         }
 
-        const hashedPassword = await bcrypt.hash(password.trim(), 10);
+
+        const userRole = await Role.findOne({
+            where: { name: "user" }
+        });
+
+        if (!userRole) {
+            return res.status(500).send({ message: 'Role "user" não encontrada no banco de dados!' });
+        }
+
+        const hashedPassword = await bcrypt.hash(
+            password.trim(),
+            10
+        );
 
         const user = await User.create({
-            name: name,
+            name: String(name).trim(),
             email: email.trim().toLowerCase(),
             password: hashedPassword,
             cpf: UsersController.normalizeCpf(cpf),
-            admin: admin ?? 0
+            role_id: userRole.id
         });
 
-        const isAdmin = admin === 1 || admin === true || admin === "1";
+        const createdUser = await User.findByPk(
+            user.id,
+            {
+                attributes: {
+                    exclude: ["password"]
+                },
+                include: [
+                    {
+                        model: Role,
+                        as: "role",
+                        attributes: ["id", "name"]
+                    }
+                ]
+            }
+        );
 
-        if (isAdmin) {
-            await BarbersController.createFromData({
-                name: user.name,
-                user_id: user.id,
-                phone: req.body.phone ?? null,
-                photo: req.body.photo ?? null,
-            });
-        }
-
-        return res.status(201).send(user);
+        return res.status(201).send(createdUser);
     }
 
     static async remove(req: Request, res: Response) {
         const { id } = req.params;
-        const authUserId = Number(res.locals.authUserId);
+
+        const authUserId = Number(
+            res.locals.authUserId
+        );
+
         const userId = Number(id);
 
-        if (Number.isInteger(authUserId) && authUserId !== userId) {
+        if (
+            Number.isInteger(authUserId) &&
+            authUserId !== userId
+        ) {
             return res.status(403).send({ message: "Você só pode modificar o seu próprio usuário!" });
         }
 
@@ -169,109 +247,135 @@ class UsersController {
             return res.status(404).send({ message: "Usuário não encontrado!" });
         }
 
-        await sequelize.transaction(async (transaction) => {
-            const barber = await Barber.findOne({ where: { user_id: userId }, transaction });
+        await sequelize.transaction(
+            async (transaction) => {
 
-            if (barber) {
-                const barberId = Number(barber.get("id"));
+                const barber = await Barber.findOne({
+                    where: { user_id: userId },
+                    transaction
+                });
 
-                if (!Number.isInteger(barberId)) {
-                    throw new Error("Barbeiro encontrado com id inválido");
+                if (barber) {
+                    const barberId = Number( barber.get("id") );
+
+                    if (!Number.isInteger(barberId)) {
+                        throw new Error(
+                            "Barbeiro encontrado com id inválido"
+                        );
+                    }
+
+                    await BarberSchedule.destroy({
+                        where: { barber_id: barberId },
+                        transaction
+                    });
+
+                    await Appointment.destroy({
+                        where: { barber_id: barberId },
+                        transaction
+                    });
+
+                    await barber.destroy({
+                        transaction
+                    });
                 }
 
-                await BarberSchedule.destroy({
-                    where: { barber_id: barberId },
-                    transaction,
-                });
-
                 await Appointment.destroy({
-                    where: { barber_id: barberId },
-                    transaction,
+                    where: { user_id: userId },
+                    transaction
                 });
 
-                await barber.destroy({ transaction });
+                await user.destroy({
+                    transaction
+                });
             }
-
-            await Appointment.destroy({
-                where: { user_id: userId },
-                transaction,
-            });
-
-            await user.destroy({ transaction });
-        });
+        );
 
         return res.status(204).send();
     }
 
     static async update(req: Request, res: Response) {
         const { id } = req.params;
-        const authUserId = Number(res.locals.authUserId);
 
-        if (Number.isInteger(authUserId) && authUserId !== Number(id)) {
+        const authUserId = Number(
+            res.locals.authUserId
+        );
+
+        const userId = Number(id);
+
+        if (
+            Number.isInteger(authUserId) &&
+            authUserId !== userId
+        ) {
             return res.status(403).send({ message: "Você só pode modificar o seu próprio usuário!" });
         }
 
-        const user = await User.findByPk(Number(id));
-        const { name, password, cpf, phone, photo, admin } = req.body ?? {};
+        const user = await User.findByPk(userId);
 
-        if (!user) {
-            return res.status(404).send({ message: "Usuário não encontrado!" });
+        if (!user) { return res.status(404).send({ message: "Usuário não encontrado!" });
         }
 
-        if (!name && !password && !cpf && admin === undefined) {
-            return res.status(400).send({
-                message: "Informe ao menos um campo para atualização!"
-            });
+        const { name, password, cpf } = req.body ?? {};
+
+        if ( name === undefined && password === undefined && cpf === undefined ) {
+            return res.status(400).send({ message: "Informe ao menos um campo para atualização!" });
         }
 
         let nextPassword = user.password;
 
         if (password !== undefined) {
-            const passwordValidation = await UsersController.isStrongPassword(password, res);
+            const passwordValidation =
+                await UsersController.isStrongPassword( password, res );
+
             if (passwordValidation) {
                 return passwordValidation;
             }
 
-            nextPassword = await bcrypt.hash(password.trim(), 10);
+            nextPassword = await bcrypt.hash( password.trim(), 10 );
         }
 
+        let nextCpf = user.cpf;
+
         if (cpf !== undefined) {
-            const cpfValidation = await UsersController.isValidCpf(cpf, res);
+            const cpfValidation =
+                await UsersController.isValidCpf( cpf, res );
+
             if (cpfValidation) {
                 return cpfValidation;
             }
+
+            nextCpf =
+                UsersController.normalizeCpf(cpf);
         }
 
         await user.update({
-            name: name ?? user.name,
+            name: name !== undefined ? String(name).trim() : user.name,
             password: nextPassword,
-            cpf: cpf !== undefined ? UsersController.normalizeCpf(cpf) : user.cpf,
-            admin: admin ?? user.admin,
+            cpf: nextCpf
         });
 
-        const nextAdmin =  admin !== undefined ? admin === true || admin === 1 || admin === "1" : Boolean(user.admin);
+        const barber = await Barber.findOne({
+            where: { user_id: user.id }
+        });
 
-        const barber = await Barber.findOne({ where: { user_id: user.id } });
-
-        if (nextAdmin) {
-            if (barber) {
-                await barber.update({
-                    name: name ?? user.name,
-                    phone: phone !== undefined ? phone : barber.phone,
-                    photo: photo !== undefined ? photo : barber.photo,
-                    active: req.body.active ?? barber.active,
-                });
-            } else {
-                await BarbersController.createFromData({
-                    name: name ?? user.name,
-                    user_id: user.id,
-                    phone: phone ?? null,
-                    photo: photo ?? null,
-                });
-            }
+        if (barber && name !== undefined) {
+            await barber.update({ name: String(name).trim() });
         }
 
-        return res.send(user);
+        const updatedUser = await User.findByPk(
+            user.id,
+            {
+                attributes: { exclude: ["password"] },
+                include: [
+                    {
+                        model: Role,
+                        as: "role",
+                        attributes: ["id", "name"]
+                    }
+                ]
+            }
+        );
+
+        return res.send(updatedUser);
     }
 }
 
