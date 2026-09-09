@@ -65,7 +65,7 @@ class BarbersController {
         });
     }
 
-    static async updateFromData( barberId: number, data: { name?: string; phone?: string | null; active?: boolean; photo?: string | null; } ) {
+    static async updateFromData(barberId: number, data: { name?: string; phone?: string | null; active?: boolean; photo?: string | null; }) {
         const barber = await Barber.findByPk(barberId);
 
         if (!barber) {
@@ -82,23 +82,14 @@ class BarbersController {
 
     static async list(req: Request, res: Response) {
         const barbers = await Barber.findAll({
-            include: [
-                {
-                    model: User,
-                    as: "user",
-                    attributes: [ "id", "name", "email", "cpf", "role_id"],
-                    include: [
-                        {
-                            model: Role,
-                            as: "role",
-                            attributes: ["id", "name"]
-                        }
-                    ]
-                }
-            ]
+            where: {
+                active: true
+            },
+            attributes: ["id", "name", "photo"],
+            order: [["name", "ASC"]]
         });
 
-        return res.send(barbers);
+        return res.status(200).json(barbers);
     }
 
     static async getProfile(req: Request, res: Response) {
@@ -120,8 +111,8 @@ class BarbersController {
                 {
                     model: User,
                     as: "user",
-                    attributes: [ "id", "name", "email", "cpf", "role_id"],
-                    include: [ { model: Role, as: "role", attributes: ["id", "name"] } ]
+                    attributes: ["id", "name", "email", "cpf", "role_id"],
+                    include: [{ model: Role, as: "role", attributes: ["id", "name"] }]
                 }
             ]
         });
@@ -196,7 +187,7 @@ class BarbersController {
         return res.status(201).send(barber);
     }
 
-    static async updateProfile( req: Request, res: Response ) {
+    static async updateProfile(req: Request, res: Response) {
         const authUserId = Number(
             res.locals.authUserId
         );
@@ -207,7 +198,7 @@ class BarbersController {
             });
         }
 
-        if ( !req.body || typeof req.body !== "object" ) {
+        if (!req.body || typeof req.body !== "object") {
             return res.status(400).send({
                 message: "Corpo da requisição inválido!"
             });
@@ -216,15 +207,15 @@ class BarbersController {
         const { phone, active, photo } = req.body;
 
         const hasPhone =
-            Object.prototype.hasOwnProperty.call( req.body, "phone" );
+            Object.prototype.hasOwnProperty.call(req.body, "phone");
 
         const hasActive =
-            Object.prototype.hasOwnProperty.call( req.body, "active" );
+            Object.prototype.hasOwnProperty.call(req.body, "active");
 
         const hasPhoto =
-            Object.prototype.hasOwnProperty.call( req.body, "photo" );
+            Object.prototype.hasOwnProperty.call(req.body, "photo");
 
-        if ( !hasPhone && !hasActive && !hasPhoto) {
+        if (!hasPhone && !hasActive && !hasPhoto) {
             return res.status(400).send({
                 message: "Informe ao menos um campo para atualização!"
             });
@@ -262,12 +253,12 @@ class BarbersController {
                     {
                         model: User,
                         as: "user",
-                        attributes: [ "id", "name", "email", "cpf", "role_id"],
+                        attributes: ["id", "name", "email", "cpf", "role_id"],
                         include: [
                             {
                                 model: Role,
                                 as: "role",
-                                attributes: [ "id", "name" ]
+                                attributes: ["id", "name"]
                             }
                         ]
                     }

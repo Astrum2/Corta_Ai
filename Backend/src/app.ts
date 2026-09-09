@@ -7,6 +7,8 @@ import BarberScheduleController from "./controllers/barberScheduleController";
 import AuthController from "./controllers/authController";
 import authMiddleware from "./middlewares/authMiddleware";
 import requirePermission from "./middlewares/permissionMiddleware";
+import { uploadImage } from "./middlewares/uploadMiddleware";
+import path from "path";
 
 const app = express();
 app.use(express.json());
@@ -20,6 +22,7 @@ const allowedOrigins = [
     "http://127.0.0.1:3000",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:8081"
 ];
 
 const corsOptions = {
@@ -28,7 +31,7 @@ const corsOptions = {
         if ( !origin || allowedOrigins.includes(origin) ) { callback(null, true); return; }
         callback( new Error( "Origem nao permitida pelo CORS" ) );
     },
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS" ],
+    methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS" ],
     allowedHeaders: [ "Content-Type", "Authorization" ],
     credentials: false
 };
@@ -43,16 +46,21 @@ router.post("/login", AuthController.login);
 
 router.get( "/users", authMiddleware, UsersController.list );
 router.post( "/users", UsersController.create);
+router.get("/users/me", authMiddleware, UsersController.getCurrentUser);
 router.get( "/users/:id", authMiddleware, UsersController.getById );
 router.put( "/users/:id", authMiddleware, UsersController.update);
 router.delete( "/users/:id", authMiddleware, UsersController.remove );
+router.patch("/users/me", authMiddleware, UsersController.update);
 
 router.get( "/barbers/profile", authMiddleware, requirePermission( "barber_profile.access" ), BarbersController.getProfile );
 router.put( "/barbers/profile", authMiddleware, requirePermission( "barber_profile.access" ), BarbersController.updateProfile );
-router.get( "/barbers", authMiddleware, requirePermission( "barber_profile.access" ), BarbersController.list );
+router.get( "/barbers", BarbersController.list );
 router.post( "/barbers", authMiddleware, requirePermission( "barber_profile.access" ), BarbersController.create);
+router.get( "/barbers/me",  authMiddleware,  requirePermission("barber_profile.access"), BarbersController.getProfile );
 router.get( "/barbers/:id", authMiddleware, requirePermission( "barber_profile.access" ), BarbersController.getById );
 router.delete( "/barbers/:id", authMiddleware, requirePermission( "barber_profile.access" ), BarbersController.remove );
+router.patch( "/barbers/me", authMiddleware, requirePermission("barber_profile.access"), BarbersController.updateProfile);
+
 
 router.get( "/services", ServicesController.list);
 router.post( "/services", authMiddleware, requirePermission( "services.manage" ), ServicesController.create );
@@ -72,7 +80,28 @@ router.get( "/barber-schedules/:id", authMiddleware, requirePermission( "barber_
 router.put( "/barber-schedules/:id", authMiddleware, requirePermission( "barber_schedule.access" ), BarberScheduleController.update);
 router.delete( "/barber-schedules/:id", authMiddleware, requirePermission( "barber_schedule.access" ), BarberScheduleController.remove);
 
+router.post(
+    "/upload-image",
+    authMiddleware,
+    uploadImage.single("photo"),
+    async (req, res) => {
+        if (!req.file) {
+            return res.status(400).json({
+                message: "Nenhuma imagem foi enviada."
+            });
+        }
 
+        return res.status(201).json({
+            fileName: req.file.filename,
+            url: `/imagens/${req.file.filename}`
+        });
+    }
+);
+
+app.use(
+  "/imagens",
+  express.static(path.resolve(process.cwd(), "uploads", "imagens"))
+);
 app.use(router);
 
 

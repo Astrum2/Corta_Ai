@@ -48,6 +48,7 @@ Frontend/.expo-shared/
 Frontend/.turbo/
 Frontend/.rollup.cache
 Frontend/.pnp.*
+BACKEND/uploads
 
 .certs
 certs/*

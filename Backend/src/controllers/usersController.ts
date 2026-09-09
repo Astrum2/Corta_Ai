@@ -116,6 +116,23 @@ class UsersController {
         return res.send(users);
     }
 
+    static async getCurrentUser(req: Request, res: Response) {
+    const user = await User.findByPk(res.locals.authUserId, {
+        attributes: { exclude: ["password"] },
+        include: [{
+            model: Role,
+            as: "role",
+            attributes: ["id", "name"]
+        }]
+    });
+
+    if (!user) {
+        return res.status(404).send({ message: "Usuário não encontrado!" });
+    }
+
+    return res.send(user);
+}
+
     static async getById(req: Request, res: Response) {
         const { id } = req.params;
 
@@ -300,7 +317,7 @@ class UsersController {
             res.locals.authUserId
         );
 
-        const userId = Number(id);
+        const userId = id !== undefined ? Number(id) : authUserId;
 
         if (
             Number.isInteger(authUserId) &&
