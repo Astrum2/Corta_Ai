@@ -9,13 +9,20 @@ import BarberSchedule from "../src/models/BarberSchedule";
 import BarberScheduleController from "../src/controllers/barberScheduleController";
 import sequelize from "../src/config/database";
 
+
+
 describe("AppointmentsController", () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
+  
 
   beforeEach(() => {
     mockRequest = {};
-    mockResponse = { send: jest.fn().mockReturnThis(), status: jest.fn().mockReturnThis() };
+    mockResponse = {
+      send: jest.fn().mockReturnThis(),
+      status: jest.fn().mockReturnThis(),
+      locals: { authUserId: 2 },
+    } as any;
     jest.restoreAllMocks();
     jest.clearAllMocks();
     jest.spyOn(sequelize, "transaction").mockImplementation(async (callback: any) => callback({}));
@@ -33,6 +40,24 @@ describe("AppointmentsController", () => {
       await AppointmentsController.list(mockRequest as Request, mockResponse as Response);
 
       expect(findAllSpy).toHaveBeenCalledWith(expect.objectContaining({ include: expect.any(Array) }));
+      expect(mockResponse.send).toHaveBeenCalledWith(mockAppointments);
+    });
+  });
+
+  describe("getCurrentUserAppointments", () => {
+    it("deve retornar somente os agendamentos do usuario autenticado", async () => {
+      const mockAppointments = [{ id: 1, user_id: 2 }];
+      const findAllSpy = jest.spyOn(Appointment, "findAll").mockResolvedValue(mockAppointments as any);
+
+      await AppointmentsController.getCurrentUserAppointments(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(findAllSpy).toHaveBeenCalledWith(expect.objectContaining({
+        where: { user_id: 2 },
+        include: expect.any(Array),
+      }));
       expect(mockResponse.send).toHaveBeenCalledWith(mockAppointments);
     });
   });
@@ -251,7 +276,7 @@ describe("AppointmentsController", () => {
       mockRequest.params = { id: "1" } as any;
       mockRequest.body = { status: "done", notes: "Cliente atendido", date: "2026-04-06", time: "15:00" };
 
-      const findByPkSpy = jest.spyOn(Appointment, "findByPk").mockResolvedValue(mockAppointment as any);
+      const findOneSpy = jest.spyOn(Appointment, "findOne").mockResolvedValue(mockAppointment as any);
       const destroySpy = jest.spyOn(BarberSchedule, "destroy").mockResolvedValue(2 as any);
       const createScheduleSpy = jest
         .spyOn(BarberScheduleController, "createFromAppointmentData")
@@ -259,7 +284,7 @@ describe("AppointmentsController", () => {
 
       await AppointmentsController.update(mockRequest as Request, mockResponse as Response);
 
-      expect(findByPkSpy).toHaveBeenCalledWith(1);
+      expect(findOneSpy).toHaveBeenCalledWith({ where: { id: 1, user_id: 2 } });
       expect(mockAppointment.update).toHaveBeenCalledWith(
         { user_id: 2, service_id: 3, barber_id: 4, date: "2026-04-06", time: "15:00", status: "done", notes: "Cliente atendido" },
         { transaction: {} }
@@ -314,7 +339,7 @@ describe("AppointmentsController", () => {
       mockRequest.params = { id: "1" } as any;
       mockRequest.body = { status: "done" };
 
-      jest.spyOn(Appointment, "findByPk").mockResolvedValue(mockAppointment as any);
+      jest.spyOn(Appointment, "findOne").mockResolvedValue(mockAppointment as any);
       const destroySpy = jest.spyOn(BarberSchedule, "destroy").mockResolvedValue(0 as any);
       const createScheduleSpy = jest
         .spyOn(BarberScheduleController, "createFromAppointmentData")
@@ -337,7 +362,7 @@ describe("AppointmentsController", () => {
       mockRequest.params = { id: "1" } as any;
       mockRequest.body = { date: "06/04/2026" };
 
-      jest.spyOn(Appointment, "findByPk").mockResolvedValue(mockAppointment as any);
+      jest.spyOn(Appointment, "findOne").mockResolvedValue(mockAppointment as any);
 
       await AppointmentsController.update(mockRequest as Request, mockResponse as Response);
 
@@ -352,7 +377,7 @@ describe("AppointmentsController", () => {
       mockRequest.params = { id: "1" } as any;
       mockRequest.body = { time: "99:00" };
 
-      jest.spyOn(Appointment, "findByPk").mockResolvedValue(mockAppointment as any);
+      jest.spyOn(Appointment, "findOne").mockResolvedValue(mockAppointment as any);
 
       await AppointmentsController.update(mockRequest as Request, mockResponse as Response);
 
@@ -367,7 +392,7 @@ describe("AppointmentsController", () => {
       mockRequest.params = { id: "1" } as any;
       mockRequest.body = {};
 
-      jest.spyOn(Appointment, "findByPk").mockResolvedValue(mockAppointment as any);
+      jest.spyOn(Appointment, "findOne").mockResolvedValue(mockAppointment as any);
 
       await AppointmentsController.update(mockRequest as Request, mockResponse as Response);
 
@@ -382,7 +407,7 @@ describe("AppointmentsController", () => {
       mockRequest.params = { id: "1" } as any;
       mockRequest.body = { status: 123 };
 
-      jest.spyOn(Appointment, "findByPk").mockResolvedValue(mockAppointment as any);
+      jest.spyOn(Appointment, "findOne").mockResolvedValue(mockAppointment as any);
 
       await AppointmentsController.update(mockRequest as Request, mockResponse as Response);
 
@@ -395,7 +420,7 @@ describe("AppointmentsController", () => {
       mockRequest.params = { id: "999" } as any;
       mockRequest.body = { status: "done" };
 
-      jest.spyOn(Appointment, "findByPk").mockResolvedValue(null as any);
+      jest.spyOn(Appointment, "findOne").mockResolvedValue(null as any);
 
       await AppointmentsController.update(mockRequest as Request, mockResponse as Response);
 
@@ -406,11 +431,11 @@ describe("AppointmentsController", () => {
 
   describe("remove", () => {
     it("deve remover um agendamento existente", async () => {
-      const mockAppointment = { id: 1, destroy: jest.fn().mockResolvedValue(undefined), getDataValue: jest.fn().mockReturnValue(1) };
+      const mockAppointment = { id: 1, user_id: 2, destroy: jest.fn().mockResolvedValue(undefined), getDataValue: jest.fn().mockReturnValue(1) };
 
       mockRequest.params = { id: "1" } as any;
 
-      const findByPkSpy = jest.spyOn(Appointment, "findByPk").mockResolvedValue(mockAppointment as any);
+      const findOneSpy = jest.spyOn(Appointment, "findOne").mockResolvedValue(mockAppointment as any);
       const findScheduleSpy = jest.spyOn(BarberSchedule, "findAll").mockResolvedValue([
         { slot_group: "group-a" },
         { slot_group: "group-a" },
@@ -420,7 +445,7 @@ describe("AppointmentsController", () => {
 
       await AppointmentsController.remove(mockRequest as Request, mockResponse as Response);
 
-      expect(findByPkSpy).toHaveBeenCalledWith(1);
+      expect(findOneSpy).toHaveBeenCalledWith({ where: { id: 1, user_id: 2 } });
       expect(findScheduleSpy).toHaveBeenCalledWith({
         where: { appointment_id: 1 },
         attributes: ["slot_group"],
@@ -442,7 +467,7 @@ describe("AppointmentsController", () => {
 
     it("deve retornar 404 ao tentar remover agendamento inexistente", async () => {
       mockRequest.params = { id: "999" } as any;
-      jest.spyOn(Appointment, "findByPk").mockResolvedValue(null as any);
+      jest.spyOn(Appointment, "findOne").mockResolvedValue(null as any);
 
       await AppointmentsController.remove(mockRequest as Request, mockResponse as Response);
 

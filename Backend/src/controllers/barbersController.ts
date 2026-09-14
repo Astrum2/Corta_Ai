@@ -85,7 +85,7 @@ class BarbersController {
             where: {
                 active: true
             },
-            attributes: ["id", "name", "photo"],
+            attributes: ["id", "name", "photo", "active"],
             order: [["name", "ASC"]]
         });
 

@@ -166,6 +166,36 @@ class BarberScheduleController {
         res.send(schedule);
     }
 
+    static async getCurrentUserSchedule(req: Request, res: Response) {
+        const authUserId = Number(res.locals.authUserId);
+
+        if (!Number.isInteger(authUserId) || authUserId <= 0) {
+            return res.status(401).send({
+                message: "Usuário não autenticado!"
+            });
+        }
+
+        const barber = await Barber.findOne({
+            where: { user_id: authUserId }
+        });
+
+        if (!barber) {
+            return res.status(404).send({
+                message: "Perfil de barbeiro não encontrado!"
+            });
+        }
+
+        const schedule = await BarberSchedule.findAll({
+            where: { barber_id: barber.id },
+            include: [
+                { model: Barber, as: "barber", attributes: { exclude: ["password"] } },
+                { model: Appointment, as: "appointment" }
+            ],
+        });
+
+        return res.send(schedule);
+    }
+
     static async getById(req: Request, res: Response) {
         const { id } = req.params;
         const barberSchedule = await BarberSchedule.findByPk(Number(id), {

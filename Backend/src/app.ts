@@ -44,7 +44,6 @@ const router: Router = Router();
 
 router.post("/login", AuthController.login);
 
-router.get( "/users", authMiddleware, UsersController.list );
 router.post( "/users", UsersController.create);
 router.get("/users/me", authMiddleware, UsersController.getCurrentUser);
 router.get( "/users/:id", authMiddleware, UsersController.getById );
@@ -70,12 +69,15 @@ router.delete("/services/:id", authMiddleware, requirePermission( "services.mana
 
 router.get( "/appointments", authMiddleware, AppointmentsController.list );
 router.post( "/appointments", authMiddleware, AppointmentsController.create );
+router.get( "/appointments/me", authMiddleware,AppointmentsController.getCurrentUserAppointments);
 router.get( "/appointments/:id", authMiddleware, AppointmentsController.getById );
 router.put( "/appointments/:id", authMiddleware, AppointmentsController.update );
 router.delete( "/appointments/:id", authMiddleware, AppointmentsController.remove );
 
+
 router.get("/barber-schedules", authMiddleware, requirePermission( "barber_schedule.access" ), BarberScheduleController.list );
 router.post( "/barber-schedules", authMiddleware, requirePermission( "barber_schedule.access" ), BarberScheduleController.create );
+router.get( "/barber-schedules/me", authMiddleware, requirePermission( "barber_schedule.access" ), BarberScheduleController.getCurrentUserSchedule );
 router.get( "/barber-schedules/:id", authMiddleware, requirePermission( "barber_schedule.access" ), BarberScheduleController.getById);
 router.put( "/barber-schedules/:id", authMiddleware, requirePermission( "barber_schedule.access" ), BarberScheduleController.update);
 router.delete( "/barber-schedules/:id", authMiddleware, requirePermission( "barber_schedule.access" ), BarberScheduleController.remove);

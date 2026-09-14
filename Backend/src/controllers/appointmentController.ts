@@ -45,6 +45,39 @@ class AppointmentsController {
         return res.send(appointment);
     }
 
+    static async getCurrentUserAppointments(req: Request, res: Response) {
+        const authUserId = Number(res.locals.authUserId);
+
+        if (!Number.isInteger(authUserId) || authUserId <= 0) {
+            return res.status(401).send({
+                message: "Usuário não autenticado!"
+            });
+        }
+
+        const appointments = await Appointment.findAll({
+            where: {
+                user_id: authUserId
+            },
+            include: [
+                {
+                    model: User,
+                    as: "user",
+                    attributes: { exclude: ["password"] }
+                },
+                {
+                    model: Service,
+                    as: "service"
+                },
+                {
+                    model: Barber,
+                    as: "barber"
+                }
+            ]
+        });
+
+        return res.send(appointments);
+    }
+
     static async create(req: Request, res: Response) {
         const { user_id, service_id, barber_id, date, time, status, notes } = req.body;
 
@@ -140,10 +173,16 @@ class AppointmentsController {
 
     static async update(req: Request, res: Response) {
         const { id } = req.params;
-        const appointment = await Appointment.findByPk(Number(id));
+        const authUserId = Number(res.locals.authUserId);
+        const appointment = await Appointment.findOne({
+            where: {
+                id: Number(id),
+                user_id: authUserId,
+            },
+        });
         const { user_id, service_id, barber_id, date, time, status, notes } = req.body;
         const appointmentId = Number(appointment?.getDataValue?.("id") ?? appointment?.id ?? Number(id));
-        const nextUserId = user_id ?? appointment?.user_id;
+        const nextUserId = authUserId;
         const nextServiceId = service_id ?? appointment?.service_id;
         const nextBarberId = barber_id ?? appointment?.barber_id;
         const nextDate = date ?? appointment?.date;
@@ -246,7 +285,13 @@ class AppointmentsController {
 
     static async remove(req: Request, res: Response) {
         const { id } = req.params;
-        const appointment = await Appointment.findByPk(Number(id));
+        const authUserId = Number(res.locals.authUserId);
+        const appointment = await Appointment.findOne({
+            where: {
+                id: Number(id),
+                user_id: authUserId,
+            },
+        });
 
         if (!appointment) {
             return res.status(404).send({ message: "Agendamento não encontrado!" });
