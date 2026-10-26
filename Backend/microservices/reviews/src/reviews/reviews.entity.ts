@@ -1,32 +1,32 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm'
+import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 
 @Entity()
-export class Order {
+export class Review {
 
     @PrimaryGeneratedColumn()
     id?: number;
 
     @Column()
-    appointment_id ?: number;
+    appointment_id: number;
 
     @Column()
-    user_id ?: number;
+    user_id: number;
 
     @Column()
-    service_id ?: number;
+    service_id: number;
 
     @Column()
-    barber_id ?: number;
+    barber_id: number;
 
     @Column()
-    rating ?: number;
+    rating: number;
 
     @Column()
-    comment?: string;
+    comment: string;
 
     @CreateDateColumn({ default: Date.now()})
-    commentedAt?: Date
+    commentedAt: Date
 
-    @CreateDateColumn({ default: Date.now()})
-    updatedAt?: Date
+    @UpdateDateColumn({ default: Date.now()})
+    updatedAt: Date
 }
