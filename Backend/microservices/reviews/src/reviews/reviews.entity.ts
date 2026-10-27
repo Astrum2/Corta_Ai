@@ -4,7 +4,7 @@ import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateCol
 export class Review {
 
     @PrimaryGeneratedColumn()
-    id?: number;
+    id: number;
 
     @Column()
     appointment_id: number;
