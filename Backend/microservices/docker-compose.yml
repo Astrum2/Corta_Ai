@@ -1,0 +1,92 @@
+services:
+  reviews:
+    build: ./reviews
+    ports:
+      - "3007:3007"
+    restart: always
+    environment:
+      DB_HOST: reviews-db
+      DB_PORT: 3306
+      DB_NAME: ${MYSQL_DATABASE_REVIEWS}
+      DB_USER: ${MYSQL_USER}
+      DB_PASS: ${MYSQL_ROOT_PASSWORD}
+      JWT_SECRET: ${JWT_PASSWORD}
+    depends_on:
+      - reviews-db
+    networks:
+      - backend
+
+  reviews-db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE_REVIEWS}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "5433:3306"
+    volumes:
+      - reviews_data:/var/lib/mysql
+    networks:
+      - backend
+
+  notifications:
+    build: ./notifications
+    restart: always
+    environment:
+      DB_HOST: notifications-db
+      DB_PORT: 3306
+      DB_NAME: ${MYSQL_DATABASE_NOTIFICATIONS}
+      DB_USER: ${MYSQL_USER}
+      DB_PASS: ${MYSQL_ROOT_PASSWORD}
+      USERS_API: http://notifications:3000
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      - notifications-db
+    networks:
+      - backend
+
+  notifications-db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE_NOTIFICATIONS}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "5434:3306"
+    volumes:
+      - notifications_data:/var/lib/mysql
+    networks:
+      - backend
+
+  redis:
+    image: redis:7
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - backend
+
+  nginx:
+    image: nginx:alpine
+    restart: always
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8080:8080"
+    depends_on:
+      - reviews
+    networks:
+      - backend
+
+volumes:
+  reviews_data:
+  notifications_data:
+
+networks:
+  backend:
+    driver: bridge
