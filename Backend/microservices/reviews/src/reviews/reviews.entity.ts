@@ -24,9 +24,9 @@ export class Review {
     @Column()
     comment: string;
 
-    @CreateDateColumn({ default: Date.now()})
-    commentedAt: Date
+    @CreateDateColumn()
+    commentedAt: Date;
 
-    @UpdateDateColumn({ default: Date.now()})
-    updatedAt: Date
+    @UpdateDateColumn()
+    updatedAt: Date;
 }

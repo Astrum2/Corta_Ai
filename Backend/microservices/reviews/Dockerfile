@@ -9,4 +9,4 @@ RUN npm run build
 
 EXPOSE 3007
 
-CMD ["node", "dist/src/main.js"]
+CMD ["node", "dist/main.js"]

@@ -18,6 +18,7 @@ import { RedisModule } from './redis/redis.module';
       username: process.env.DB_USER,
       password:  process.env.DB_PASS,
       database: 'reviews',
+      autoLoadEntities: true,
       synchronize: true,
     }),
     RedisModule,
