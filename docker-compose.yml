@@ -44,6 +44,8 @@ services:
       DB_USER: ${MYSQL_USER}
       DB_PASS: ${MYSQL_ROOT_PASSWORD}
       JWT_SECRET: ${JWT_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     depends_on:
       database:
         condition: service_healthy
@@ -51,7 +53,14 @@ services:
       - app-network
     volumes:
     - ./Backend/uploads:/app/uploads
-    
+
+  redis:
+    image: redis:7
+    container_name: redis_service
+    restart: always
+    networks:
+      - app-network
+
   image-server:
     build:
       context: ./Frontend

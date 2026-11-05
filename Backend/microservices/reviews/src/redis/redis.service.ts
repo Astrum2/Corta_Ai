@@ -6,6 +6,6 @@ export class RedisService {
     private client: Redis;
 
     constructor() {
-        this.client = new IORedis({ host: 'localhost', port: 6379});
+        this.client = new IORedis({ host: process.env.REDIS_HOST, port: 6379});
     }
 }

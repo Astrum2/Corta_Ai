@@ -7,6 +7,7 @@ import Barber from "../models/Barber";
 import BarberSchedule from "../models/BarberSchedule";
 import BarberScheduleController from "./barberScheduleController";
 import sequelize from "../config/database";
+import { publishAppointmentCreated } from "../config/redis";
 
 class AppointmentsController {
     private static isValidDate(value: string): boolean {
@@ -157,6 +158,16 @@ class AppointmentsController {
                 });
 
                 return createdAppointment;
+            });
+
+            await publishAppointmentCreated({
+                event: "appointment.created",
+                appointmentId: appointment.id,
+                userId: appointment.user_id,
+                barberId: appointment.barber_id,
+                serviceId: appointment.service_id,
+                date: appointment.date,
+                time: appointment.time,
             });
 
             return res.status(201).send(appointment);

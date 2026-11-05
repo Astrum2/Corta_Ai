@@ -3,6 +3,7 @@ import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { DataSource } from 'typeorm';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ReviewsModule } from './reviews/reviews.module.js';
 import { RedisModule } from './redis/redis.module';
 
 
@@ -12,7 +13,7 @@ import { RedisModule } from './redis/redis.module';
   imports: [
     TypeOrmModule.forRoot({
       type: 'mysql',
-      host: 'localhost',
+      host: process.env.DB_HOST,
       port: 3306,
       username: process.env.DB_USER,
       password:  process.env.DB_PASS,
@@ -20,6 +21,7 @@ import { RedisModule } from './redis/redis.module';
       synchronize: true,
     }),
     RedisModule,
+    ReviewsModule,
   ],
 })
 
