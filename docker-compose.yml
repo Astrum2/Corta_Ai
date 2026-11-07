@@ -46,6 +46,7 @@ services:
       JWT_SECRET: ${JWT_PASSWORD}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      NOTIFICATIONS_URL: ${NOTIFICATIONS_URL}
     depends_on:
       database:
         condition: service_healthy

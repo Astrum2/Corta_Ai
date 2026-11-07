@@ -1,9 +1,19 @@
-import { Body, Controller, Delete, Get, Headers, Param, Post, Put } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+} from '@nestjs/common';
 import { NotificationsService } from './notifications.service.js';
 import { Notification } from './notifications.entity.js';
 
 type CreateNotificationDto = {
   appointment_id: number;
+  user_id: number;
   type: string;
   title: string;
   message: string;
@@ -20,17 +30,28 @@ export class NotificationsController {
   }
 
   @Post()
-  create(
-    @Body() body: CreateNotificationDto,
-    @Headers('authorization') authorization?: string,
-  ): Promise<Notification> {
+  create(@Body() body: CreateNotificationDto): Promise<Notification> {
+    const appointmentId = Number(body?.appointment_id);
+    const userId = Number(body?.user_id);
+
+    if (
+      !Number.isInteger(userId) ||
+      userId <= 0 ||
+      !Number.isInteger(appointmentId) ||
+      appointmentId <= 0
+    ) {
+      throw new BadRequestException(
+        'user_id e appointment_id devem ser números inteiros válidos',
+      );
+    }
+
     return this.notificationsService.create(
-      body.appointment_id,
+      appointmentId,
+      userId,
       body.type,
       body.title,
       body.message,
       body.status,
-      authorization,
     );
   }
 

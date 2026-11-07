@@ -7,9 +7,41 @@ import Barber from "../models/Barber";
 import BarberSchedule from "../models/BarberSchedule";
 import BarberScheduleController from "./barberScheduleController";
 import sequelize from "../config/database";
-import { publishAppointmentCreated } from "../config/redis";
+
+type AppointmentNotification = {
+    appointment_id: number;
+    user_id: number;
+    type: string;
+    title: string;
+    message: string;
+    status: string;
+};
 
 class AppointmentsController {
+    private static notify(data: AppointmentNotification): void {
+        const notificationsUrl = process.env.NOTIFICATIONS_URL
+
+        if (!notificationsUrl) {
+            return;
+        }
+
+        void fetch(notificationsUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    void response.text().then((details) => {
+                        console.error( "[Notifications] Falha ao criar notificação:", response.status, details );
+                    });
+                }
+            })
+            .catch((error) => {
+                console.error("[Notifications] Serviço indisponível:", error);
+            });
+    }
+
     private static isValidDate(value: string): boolean {
         return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value));
     }
@@ -160,14 +192,13 @@ class AppointmentsController {
                 return createdAppointment;
             });
 
-            await publishAppointmentCreated({
-                event: "appointment.created",
-                appointmentId: appointment.id,
-                userId: appointment.user_id,
-                barberId: appointment.barber_id,
-                serviceId: appointment.service_id,
-                date: appointment.date,
-                time: appointment.time,
+            AppointmentsController.notify({
+                appointment_id: Number(appointment.getDataValue?.("id") ?? appointment.id),
+                user_id: Number(appointment.getDataValue?.("user_id") ?? parsedUserId),
+                type: "appointment_created",
+                title: "Agendamento feito com sucesso",
+                message: "Seu agendamento foi criado com sucesso.",
+                status: "pending",
             });
 
             return res.status(201).send(appointment);
@@ -282,6 +313,19 @@ class AppointmentsController {
                 return updated;
             });
 
+            AppointmentsController.notify({
+                appointment_id: Number(
+                    updatedAppointment.getDataValue?.("id") ?? updatedAppointment.id
+                ),
+                user_id: Number(
+                    updatedAppointment.getDataValue?.("user_id") ?? updatedAppointment.user_id
+                ),
+                type: "appointment_updated",
+                title: "Agendamento atualizado com sucesso",
+                message: "Seu agendamento foi atualizado.",
+                status: "pending",
+            });
+
             return res.send(updatedAppointment);
         } catch (error) {
             const normalizedError = typeof error === "object" && error !== null ? error : null;
@@ -310,6 +354,9 @@ class AppointmentsController {
 
         const appointmentId = Number(
             appointment.getDataValue?.("id") ?? appointment.id ?? Number(id)
+        );
+        const userId = Number(
+            appointment.getDataValue?.("user_id") ?? appointment.user_id
         );
 
         if (!Number.isInteger(appointmentId) || appointmentId <= 0) {
@@ -347,6 +394,15 @@ class AppointmentsController {
                 });
 
                 await appointment.destroy({ transaction });
+            });
+
+            AppointmentsController.notify({
+                appointment_id: appointmentId,
+                user_id: userId,
+                type: "appointment_deleted",
+                title: "Agendamento deletado com sucesso",
+                message: "Seu agendamento foi deletado.",
+                status: "pending",
             });
 
             return res.status(204).send();

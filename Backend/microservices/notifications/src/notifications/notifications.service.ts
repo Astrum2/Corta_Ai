@@ -1,19 +1,12 @@
-import { Injectable, UnauthorizedException, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification } from './notifications.entity';
-import { HttpClient } from '@nestjs/http-client';
-
-type AppointmentResponse = {
-    id: number;
-    user_id: number;
-};
 
 @Injectable()
 export class NotificationsService {
     constructor(
         @InjectRepository(Notification) private notificationRepository: Repository<Notification>,
-        private httpClient: HttpClient,
     ) { }
 
     findAll(): Promise<Notification[]> {
@@ -22,33 +15,15 @@ export class NotificationsService {
 
     async create(
         appointment_id: number,
+        user_id: number,
         type: string,
         title: string,
         message: string,
         status: string,
-        authorization?: string,
     ): Promise<Notification> {
-        if (!authorization) {
-            throw new UnauthorizedException('Não autorizado');
-        }
-
-        const { data: appointment } = await this.httpClient.get<AppointmentResponse>(
-            `/appointments/${appointment_id}`,
-            {
-                headers: {
-                    Authorization: authorization,
-                },
-            },
-        );
-
-        if (!appointment) {
-            throw new NotFoundException('Agendamento não encontrado');
-        }
-
-
         const notification = this.notificationRepository.create({
-            appointment_id: appointment.id,
-            user_id: appointment.user_id,
+            appointment_id,
+            user_id,
             type,
             title,
             message,
