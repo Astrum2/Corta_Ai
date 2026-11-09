@@ -5,15 +5,15 @@ import Service from "./Service";
 import Barber from "./Barber";
 
 class Appointment extends Model {
-    public id!: number;
-    public user_id!: number;
-    public service_id!: number;
-    public barber_id!: number;
-    public date!: string;
-    public time!: string;
-    public status!: string;
-    public notes!: string | null;
-    public created_at!: Date;
+    declare id: number;
+    declare user_id: number;
+    declare service_id: number;
+    declare barber_id: number;
+    declare date: string;
+    declare time: string;
+    declare status: string;
+    declare notes: string | null;
+    declare created_at: Date;
 }
 
 Appointment.init(

@@ -13,6 +13,13 @@ export class NotificationsService {
         return this.notificationRepository.find();
     }
 
+    findByUserId(userId: number): Promise<Notification[]> {
+        return this.notificationRepository.find({
+            where: { user_id: userId },
+            order: { scheduled_at: 'DESC' },
+        });
+    }
+
     async create(
         appointment_id: number,
         user_id: number,

@@ -4,17 +4,17 @@ import Barber from "./Barber";
 import Appointment from "./Appointment";
 
 class BarberSchedule extends Model {
-    public id!: number;
-    public barber_id!: number;
-    public date!: string;
-    public start!: string;
-    public end!: string;
-    public duration_minutes!: number;
-    public status!: string;
-    public appointment_id!: number | null;
-    public slot_group!: string | null;
-    public notes!: string | null;
-    public created_at!: Date;
+    declare id: number;
+    declare barber_id: number;
+    declare date: string;
+    declare start: string;
+    declare end: string;
+    declare duration_minutes: number;
+    declare status: string;
+    declare appointment_id: number | null;
+    declare slot_group: string | null;
+    declare notes: string | null;
+    declare created_at: Date;
 }
 
 BarberSchedule.init(

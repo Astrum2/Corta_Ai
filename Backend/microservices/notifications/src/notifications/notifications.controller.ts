@@ -1,13 +1,4 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Post,
-  Put,
-} from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Headers, Param, Post, Put } from '@nestjs/common';
 import { NotificationsService } from './notifications.service.js';
 import { Notification } from './notifications.entity.js';
 
@@ -27,6 +18,19 @@ export class NotificationsController {
   @Get()
   findAll(): Promise<Notification[]> {
     return this.notificationsService.findAll();
+  }
+
+  @Get('me')
+  findMine(@Headers('x-user-id') userIdHeader?: string): Promise<Notification[]> {
+    const userId = Number(userIdHeader);
+
+    if (!Number.isInteger(userId) || userId <= 0) {
+      throw new BadRequestException(
+        'User-Id deve conter um número inteiro válido',
+      );
+    }
+
+    return this.notificationsService.findByUserId(userId);
   }
 
   @Post()
