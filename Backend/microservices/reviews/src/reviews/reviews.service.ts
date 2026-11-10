@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Review } from './reviews.entity';
 import { HttpClient } from '@nestjs/http-client';
+import { RedisService } from '../redis/redis.service.js';
 
 type AppointmentResponse = {
     id: number;
@@ -20,6 +21,7 @@ export class ReviewsService {
     constructor(
         @InjectRepository(Review) private reviewRepository: Repository<Review>,
         private httpClient: HttpClient,
+        private redisService: RedisService,
     ) { }
 
     findAll(): Promise<Review[]> {
@@ -53,7 +55,10 @@ export class ReviewsService {
             rating,
             comment,
         })
-        return this.reviewRepository.save(review);
+        const savedReview = await this.reviewRepository.save(review);
+        await this.redisService.publishReviewCreated(savedReview);
+
+        return savedReview;
     }
 
     findOne(id: number): Promise<Review | null> {

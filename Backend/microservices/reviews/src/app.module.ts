@@ -4,7 +4,6 @@ import { AppService } from './app.service.js';
 import { DataSource } from 'typeorm';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ReviewsModule } from './reviews/reviews.module.js';
-import { RedisModule } from './redis/redis.module';
 
 
 @Module({
@@ -21,7 +20,6 @@ import { RedisModule } from './redis/redis.module';
       autoLoadEntities: true,
       synchronize: true,
     }),
-    RedisModule,
     ReviewsModule,
   ],
 })

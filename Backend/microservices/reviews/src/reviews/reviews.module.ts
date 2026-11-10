@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ReviewsController } from './reviews.controller.js';
 import { ReviewsService } from './reviews.service.js';
 import { Review } from './reviews.entity.js';
+import { RedisModule } from '../redis/redis.module.js';
 
 @Module({
   imports: [
@@ -11,7 +12,8 @@ import { Review } from './reviews.entity.js';
       baseUrl: process.env.OUTER_BACKEND_URL,
       timeout: '5s',
     }), 
-    TypeOrmModule.forFeature([Review])],
+    TypeOrmModule.forFeature([Review]),
+    RedisModule],
     controllers: [ReviewsController],
     providers: [ReviewsService]
 })
