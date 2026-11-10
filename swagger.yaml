@@ -1,0 +1,268 @@
+openapi: 3.0.3
+info:
+  title: Corta AI - API de Barbearia
+  version: 1.0.0
+  description: |
+    Documentação da API de agendamentos e avaliações da plataforma Corta AI.
+
+    Os controllers atuais expõem as rotas em inglês:
+    `POST /appointments` (agendamentos) e `POST /reviews` (avaliações).
+    No código, os campos equivalentes a data/hora/nota são `date`/`time`/`rating`.
+servers:
+  - url: http://localhost:3001
+    description: Backend local
+
+tags:
+  - name: Agendamentos
+    description: Reserva e consulta de horários
+  - name: Avaliações
+    description: Reviews de atendimento
+
+paths:
+  /appointments:
+    post:
+      tags:
+        - Agendamentos
+      summary: Reservar um horário
+      description: |
+        Cria um agendamento e o respectivo bloqueio na agenda do barbeiro.
+        A rota exige autenticação Bearer. O horário deve estar no formato
+        `HH:mm` ou `HH:mm:ss` e a data no formato `YYYY-MM-DD`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAppointmentRequest'
+            examples:
+              reserva:
+                summary: Reserva de horário
+                value:
+                  user_id: 12
+                  barber_id: 4
+                  service_id: 2
+                  date: '2026-11-15'
+                  time: '14:30'
+                  status: scheduled
+                  notes: Corte e barba
+      responses:
+        '201':
+          description: Agendamento criado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+        '400':
+          description: Dados obrigatórios, IDs ou data/hora inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                camposObrigatorios:
+                  value:
+                    message: user_id, service_id, barber_id, date e time são obrigatórios!
+                dataInvalida:
+                  value:
+                    message: date deve estar no formato YYYY-MM-DD!
+        '401':
+          description: Token ausente ou inválido
+        '404':
+          description: Usuário, serviço ou barbeiro não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Horário indisponível
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Erro interno ao criar o agendamento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /reviews:
+    post:
+      tags:
+        - Avaliações
+      summary: Criar uma avaliação de atendimento
+      description: |
+        Cria uma review vinculada a um agendamento existente. A API consulta
+        o agendamento usando o token Bearer e preenche automaticamente
+        `user_id`, `service_id` e `barber_id` a partir dele. Portanto, esses
+        campos não devem ser enviados no corpo da requisição.
+
+        No código atual, a nota da avaliação é chamada `rating` (e não `nota`).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReviewRequest'
+            examples:
+              review:
+                summary: Review de atendimento
+                value:
+                  appointment_id: 91
+                  rating: 5
+                  comment: Atendimento excelente!
+      responses:
+        '201':
+          description: Avaliação criada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        '401':
+          description: Token ausente ou inválido
+        '404':
+          description: Agendamento não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Erro interno ao criar a avaliação
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    CreateAppointmentRequest:
+      type: object
+      required:
+        - user_id
+        - barber_id
+        - service_id
+        - date
+        - time
+      properties:
+        user_id:
+          type: integer
+          minimum: 1
+          description: ID do usuário que fará a reserva.
+          example: 12
+        barber_id:
+          type: integer
+          minimum: 1
+          description: ID do barbeiro escolhido.
+          example: 4
+        service_id:
+          type: integer
+          minimum: 1
+          description: ID do serviço escolhido.
+          example: 2
+        date:
+          type: string
+          format: date
+          description: Data da reserva (equivalente a data).
+          example: '2026-11-15'
+        time:
+          type: string
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$'
+          description: Hora da reserva (equivalente a hora), em HH:mm ou HH:mm:ss.
+          example: '14:30'
+        status:
+          type: string
+          default: scheduled
+          description: Status inicial do agendamento.
+          example: scheduled
+        notes:
+          type: string
+          nullable: true
+          description: Observações opcionais sobre a reserva.
+          example: Corte e barba
+
+    Appointment:
+      allOf:
+        - $ref: '#/components/schemas/CreateAppointmentRequest'
+        - type: object
+          required:
+            - id
+            - created_at
+          properties:
+            id:
+              type: integer
+              example: 91
+            created_at:
+              type: string
+              format: date-time
+
+    CreateReviewRequest:
+      type: object
+      required:
+        - appointment_id
+        - rating
+        - comment
+      properties:
+        appointment_id:
+          type: integer
+          minimum: 1
+          description: ID do agendamento que será avaliado.
+          example: 91
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Nota do atendimento (equivalente a nota).
+          example: 5
+        comment:
+          type: string
+          description: Comentário textual sobre o atendimento.
+          example: Atendimento excelente!
+
+    Review:
+      allOf:
+        - $ref: '#/components/schemas/CreateReviewRequest'
+        - type: object
+          required:
+            - id
+            - user_id
+            - service_id
+            - barber_id
+            - commentedAt
+            - updatedAt
+          properties:
+            id:
+              type: integer
+              example: 7
+            user_id:
+              type: integer
+              description: Preenchido a partir do agendamento avaliado.
+              example: 12
+            service_id:
+              type: integer
+              description: Preenchido a partir do agendamento avaliado.
+              example: 2
+            barber_id:
+              type: integer
+              description: Preenchido a partir do agendamento avaliado.
+              example: 4
+            commentedAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+
+    Error:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          example: Dados inválidos
