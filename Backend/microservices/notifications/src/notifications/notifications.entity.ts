@@ -9,8 +9,8 @@ export class Notification {
     @Column()
     user_id: number;
 
-    @Column()
-    appointment_id: number;
+    @Column({ type: 'int', nullable: true })
+    appointment_id: number | null;
 
     @Column()
     type: string;

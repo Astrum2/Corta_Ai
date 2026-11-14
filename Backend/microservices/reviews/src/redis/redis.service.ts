@@ -18,13 +18,11 @@ export class RedisService {
 
     async publishReviewCreated(review: {
         id: number;
-        appointment_id: number;
         user_id: number;
     }): Promise<void> {
         const event = {
             event: 'review.created' as const,
             reviewId: review.id,
-            appointmentId: review.appointment_id,
             userId: review.user_id,
         };
 

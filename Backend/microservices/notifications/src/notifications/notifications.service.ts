@@ -21,7 +21,7 @@ export class NotificationsService {
     }
 
     async create(
-        appointment_id: number,
+        appointment_id: number | null,
         user_id: number,
         type: string,
         title: string,

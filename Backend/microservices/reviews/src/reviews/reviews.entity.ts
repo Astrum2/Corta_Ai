@@ -7,16 +7,7 @@ export class Review {
     id: number;
 
     @Column()
-    appointment_id: number;
-
-    @Column()
     user_id: number;
-
-    @Column()
-    service_id: number;
-
-    @Column()
-    barber_id: number;
 
     @Column()
     rating: number;

@@ -1,26 +1,13 @@
-import { Injectable, UnauthorizedException, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Review } from './reviews.entity';
-import { HttpClient } from '@nestjs/http-client';
 import { RedisService } from '../redis/redis.service.js';
-
-type AppointmentResponse = {
-    id: number;
-    user_id: number;
-    service_id: number;
-    barber_id: number;
-    date: string;
-    time: string;
-    status: string;
-    notes: string | null;
-};
 
 @Injectable()
 export class ReviewsService {
     constructor(
         @InjectRepository(Review) private reviewRepository: Repository<Review>,
-        private httpClient: HttpClient,
         private redisService: RedisService,
     ) { }
 
@@ -28,30 +15,9 @@ export class ReviewsService {
         return this.reviewRepository.find();
     }
 
-    async create(appointment_id: number, rating: number, comment: string, authorization?: string): Promise<Review> {
-        if (!authorization) {
-            throw new UnauthorizedException('Não autorizado');
-        }
-
-        const { data: appointment } = await this.httpClient.get<AppointmentResponse>(
-            `/appointments/${appointment_id}`,
-            {
-                headers: {
-                    Authorization: authorization,
-                },
-            },
-        );
-
-        if (!appointment) {
-            throw new NotFoundException('Agendamento não encontrado');
-        }
-
-
+    async create(user_id: number, rating: number, comment: string): Promise<Review> {
         const review = this.reviewRepository.create({
-            appointment_id: appointment.id,
-            user_id: appointment.user_id,
-            service_id: appointment.service_id,
-            barber_id: appointment.barber_id,
+            user_id,
             rating,
             comment,
         })

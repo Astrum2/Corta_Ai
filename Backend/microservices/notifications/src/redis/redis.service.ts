@@ -17,7 +17,6 @@ type AppointmentCreatedEvent = {
 type ReviewCreatedEvent = {
   event: "review.created";
   reviewId: number;
-  appointmentId: number;
   userId: number;
 };
 
@@ -72,7 +71,6 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
     if (event.event === "review.created") {
       const notification = this.notificationRepository.create({
-        appointment_id: event.appointmentId,
         user_id: event.userId,
         type: "review.created",
         title: "Review registrada",

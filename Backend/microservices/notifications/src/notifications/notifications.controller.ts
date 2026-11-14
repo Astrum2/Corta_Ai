@@ -3,7 +3,7 @@ import { NotificationsService } from './notifications.service.js';
 import { Notification } from './notifications.entity.js';
 
 type CreateNotificationDto = {
-  appointment_id: number;
+  appointment_id?: number;
   user_id: number;
   type: string;
   title: string;
@@ -35,17 +35,18 @@ export class NotificationsController {
 
   @Post()
   create(@Body() body: CreateNotificationDto): Promise<Notification> {
-    const appointmentId = Number(body?.appointment_id);
+    const appointmentId =
+      body?.appointment_id === undefined ? null : Number(body.appointment_id);
     const userId = Number(body?.user_id);
 
     if (
       !Number.isInteger(userId) ||
       userId <= 0 ||
-      !Number.isInteger(appointmentId) ||
-      appointmentId <= 0
+      (appointmentId !== null &&
+        (!Number.isInteger(appointmentId) || appointmentId <= 0))
     ) {
       throw new BadRequestException(
-        'user_id e appointment_id devem ser números inteiros válidos',
+        'user_id deve ser um número inteiro válido e appointment_id, quando informado, também',
       );
     }
 

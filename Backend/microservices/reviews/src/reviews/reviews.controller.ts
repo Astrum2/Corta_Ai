@@ -1,9 +1,9 @@
-import { Body, Controller, Delete, Get, Headers, Param, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
 import { ReviewsService } from './reviews.service.js';
 import { Review } from './reviews.entity.js';
 
 type CreateReviewDto = {
-  appointment_id: number;
+  user_id: number;
   rating: number;
   comment: string;
 };
@@ -18,15 +18,11 @@ export class ReviewsController {
   }
 
   @Post()
-  create(
-    @Body() body: CreateReviewDto,
-    @Headers('authorization') authorization?: string,
-  ) {
+  create(@Body() body: CreateReviewDto) {
     return this.reviewsService.create(
-      body.appointment_id,
+      body.user_id,
       body.rating,
       body.comment,
-      authorization,
     );
   }
 
