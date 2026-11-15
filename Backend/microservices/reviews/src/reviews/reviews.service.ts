@@ -32,13 +32,19 @@ export class ReviewsService {
     }
 
     async remove(id: number): Promise<void> {
+        const review = await this.findOne(id);
         await this.reviewRepository.delete(id);
+
+        if (review) {
+            await this.redisService.publishReviewDeleted(review);
+        }
     }
 
     async update(id: number, attrs: Partial<Review>) {
         let review = await this.findOne(id);
         Object.assign(review!, attrs);
         review = await this.reviewRepository.save(review!);
+        await this.redisService.publishReviewUpdated(review);
 
         return review;
     }

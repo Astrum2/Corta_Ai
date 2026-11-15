@@ -15,7 +15,7 @@ type AppointmentCreatedEvent = {
 };
 
 type ReviewCreatedEvent = {
-  event: "review.created";
+  event: "review.created" | "review.updated" | "review.deleted";
   reviewId: number;
   userId: number;
 };
@@ -69,12 +69,28 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       );
     }
 
-    if (event.event === "review.created") {
+    if (event.event === "review.created" || event.event === "review.updated" ||
+        event.event === "review.deleted") {
+      const notificationDetails = {
+        "review.created": {
+          title: "Review registrada",
+          message: "Sua review foi feita com sucesso",
+        },
+        "review.updated": {
+          title: "Review atualizada",
+          message: "Sua review foi atualizada com sucesso",
+        },
+        "review.deleted": {
+          title: "Review excluída",
+          message: "Sua review foi excluída com sucesso",
+        },
+      }[event.event];
+
       const notification = this.notificationRepository.create({
         user_id: event.userId,
-        type: "review.created",
-        title: "Review registrada",
-        message: "Sua review foi feita com sucesso",
+        type: event.event,
+        title: notificationDetails.title,
+        message: notificationDetails.message,
         status: "unread",
       });
 

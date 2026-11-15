@@ -20,8 +20,29 @@ export class RedisService {
         id: number;
         user_id: number;
     }): Promise<void> {
+        await this.publishReviewEvent('review.created', review);
+    }
+
+    async publishReviewUpdated(review: {
+        id: number;
+        user_id: number;
+    }): Promise<void> {
+        await this.publishReviewEvent('review.updated', review);
+    }
+
+    async publishReviewDeleted(review: {
+        id: number;
+        user_id: number;
+    }): Promise<void> {
+        await this.publishReviewEvent('review.deleted', review);
+    }
+
+    private async publishReviewEvent(
+        eventName: 'review.created' | 'review.updated' | 'review.deleted',
+        review: { id: number; user_id: number },
+    ): Promise<void> {
         const event = {
-            event: 'review.created' as const,
+            event: eventName,
             reviewId: review.id,
             userId: review.user_id,
         };
