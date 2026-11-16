@@ -4,16 +4,6 @@ import IORedis, { Redis } from "ioredis";
 import { Repository } from "typeorm";
 import { Notification } from "../notifications/notifications.entity.js";
 
-type AppointmentCreatedEvent = {
-  event: "appointment.created";
-  appointmentId: number;
-  userId: number;
-  barberId: number;
-  serviceId: number;
-  date: string;
-  time: string;
-};
-
 type ReviewCreatedEvent = {
   event: "review.created" | "review.updated" | "review.deleted";
   reviewId: number;
@@ -39,9 +29,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleInit(): Promise<void> {
-    await this.subscriber.subscribe("appointments.events");
     await this.subscriber.subscribe("reviews.events");
-    console.log("[Redis Subscriber] Assinatura ativa: appointments.events");
     console.log("[Redis Subscriber] Assinatura ativa: reviews.events");
 
     this.subscriber.on("message", (channel, rawMessage) => {
@@ -52,22 +40,16 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async handleMessage(channel: string, rawMessage: string): Promise<void> {
-    let event: AppointmentCreatedEvent | ReviewCreatedEvent;
+    let event: ReviewCreatedEvent;
 
     try {
-      event = JSON.parse(rawMessage) as AppointmentCreatedEvent | ReviewCreatedEvent;
+      event = JSON.parse(rawMessage) as ReviewCreatedEvent;
     } catch (error) {
       console.error("[Redis Subscriber] Mensagem inválida:", error);
       return;
     }
 
     console.log(`[Redis Subscriber] Evento recebido no canal ${channel}:`, event);
-
-    if (event.event === "appointment.created") {
-      console.log(
-        `[Redis Subscriber] Evento processado para appointmentId=${event.appointmentId}`,
-      );
-    }
 
     if (event.event === "review.created" || event.event === "review.updated" ||
         event.event === "review.deleted") {

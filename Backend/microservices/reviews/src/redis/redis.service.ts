@@ -16,24 +16,15 @@ export class RedisService {
         });
     }
 
-    async publishReviewCreated(review: {
-        id: number;
-        user_id: number;
-    }): Promise<void> {
+    async publishReviewCreated(review: { id: number; user_id: number }): Promise<void> {
         await this.publishReviewEvent('review.created', review);
     }
 
-    async publishReviewUpdated(review: {
-        id: number;
-        user_id: number;
-    }): Promise<void> {
+    async publishReviewUpdated(review: { id: number; user_id: number }): Promise<void> {
         await this.publishReviewEvent('review.updated', review);
     }
 
-    async publishReviewDeleted(review: {
-        id: number;
-        user_id: number;
-    }): Promise<void> {
+    async publishReviewDeleted(review: { id: number; user_id: number }): Promise<void> {
         await this.publishReviewEvent('review.deleted', review);
     }
 
