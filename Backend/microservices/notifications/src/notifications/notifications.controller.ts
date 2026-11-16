@@ -21,7 +21,7 @@ export class NotificationsController {
   }
 
   @Get('me')
-  findMine(@Headers('x-user-id') userIdHeader?: string): Promise<Notification[]> {
+  findMine(@Headers('x-user-id') userIdHeader?: string): Promise<Notification | null> {
     const userId = Number(userIdHeader);
 
     if (!Number.isInteger(userId) || userId <= 0) {
@@ -30,7 +30,7 @@ export class NotificationsController {
       );
     }
 
-    return this.notificationsService.findByUserId(userId);
+    return this.notificationsService.findLatestByUserId(userId);
   }
 
   @Post()

@@ -13,10 +13,10 @@ export class NotificationsService {
         return this.notificationRepository.find();
     }
 
-    findByUserId(userId: number): Promise<Notification[]> {
-        return this.notificationRepository.find({
+    findLatestByUserId(userId: number): Promise<Notification | null> {
+        return this.notificationRepository.findOne({
             where: { user_id: userId },
-            order: { scheduled_at: 'DESC' },
+            order: { scheduled_at: 'DESC', id: 'DESC' },
         });
     }
 
