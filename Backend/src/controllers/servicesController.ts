@@ -29,12 +29,14 @@ class ServicesController {
             const cachedServices = await redis.get(SERVICES_CACHE_KEY);
 
             if (cachedServices) {
+                console.log("[Services Cache] Dados obtidos do cache (Redis).");
                 return res.send(JSON.parse(cachedServices));
             }
         } catch (error) {
             console.error("[Redis Cache] Falha ao consultar lista de serviços:", error);
         }
 
+        console.log("[Services Cache] Dados obtidos do banco de dados.");
         const services = await Service.findAll();
 
         try {
@@ -59,12 +61,14 @@ class ServicesController {
             const cachedService = await redis.get(serviceCacheKey(serviceId));
 
             if (cachedService) {
+                console.log(`[Services Cache] Serviço ${serviceId} obtido do cache (Redis).`);
                 return res.send(JSON.parse(cachedService));
             }
         } catch (error) {
             console.error("[Redis Cache] Falha ao consultar serviço:", error);
         }
 
+        console.log(`[Services Cache] Serviço ${serviceId} obtido do banco de dados.`);
         const service = await Service.findByPk(serviceId);
 
         if (!service) {
