@@ -19,6 +19,7 @@ coverage/
 Frontend/.env
 Frontend/.env.local
 Frontend/.env.* 
+microservices/nginx/default.conf
 
 # Logs
 *.log
