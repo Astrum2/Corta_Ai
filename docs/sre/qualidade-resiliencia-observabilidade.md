@@ -17,10 +17,6 @@ O Serviço de Notificações tenta reenviar a mensagem até três vezes quando o
 
 A API aguarda no máximo três segundos pelo Serviço de Review. Se o limite for excedido, a resposta do review é ignorada para não bloquear o cliente.
 
-### Circuit Breaker
-
-Se o envio de e-mail falhar continuamente, a API interrompe temporariamente as chamadas ao serviço externo.
-
 ## Observabilidade
 
 Devem ser coletados e acompanhados:
