@@ -15,9 +15,15 @@ export class ReviewsService {
         return this.reviewRepository.find();
     }
 
-    async create(user_id: number, rating: number, comment: string): Promise<Review> {
+    async create(
+        user_id: number,
+        user_name: string,
+        rating: number,
+        comment: string,
+    ): Promise<Review> {
         const review = this.reviewRepository.create({
             user_id,
+            user_name,
             rating,
             comment,
         })

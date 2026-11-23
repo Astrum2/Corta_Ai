@@ -4,6 +4,7 @@ import { Review } from './reviews.entity.js';
 
 type CreateReviewDto = {
   user_id: number;
+  user_name: string;
   rating: number;
   comment: string;
 };
@@ -21,6 +22,7 @@ export class ReviewsController {
   create(@Body() body: CreateReviewDto) {
     return this.reviewsService.create(
       body.user_id,
+      body.user_name,
       body.rating,
       body.comment,
     );

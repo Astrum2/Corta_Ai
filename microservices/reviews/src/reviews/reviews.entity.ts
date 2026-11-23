@@ -10,6 +10,9 @@ export class Review {
     user_id: number;
 
     @Column()
+    user_name: string;
+
+    @Column()
     rating: number;
 
     @Column()
