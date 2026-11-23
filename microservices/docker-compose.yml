@@ -88,8 +88,8 @@ services:
 
   nginx:
     build:
-      context: ../..
-      dockerfile: Backend/microservices/nginx/Dockerfile
+      context: .
+      dockerfile: nginx/Dockerfile
     container_name: microservices-nginx
     restart: always
     ports:
