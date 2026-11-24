@@ -8,7 +8,7 @@ Cuida exclusivamente de saber quem é a pessoa usando o sistema e garantir a seg
 
 - Registrar novos usuários.
 - Realizar login e autenticação.
-- Editar as informações do perfil do cliente, incluindo telefone, nome e endereço.
+- Editar as informações do perfil do cliente, nome e senha
 - Concentrar a regra de negócio que impede a edição do e-mail.
 
 ## Contexto de Catálogo (Gestão da Barbearia)
